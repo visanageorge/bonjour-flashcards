@@ -82,6 +82,11 @@ describe("Backup integrity", () => {
     expect(restored.cards[0].schedule.due).toBeInstanceOf(Date);
     expect(() => outcomes(restored.cards[0], 0.9, now)).not.toThrow();
   });
+  it("accepts older backups that do not contain templates", () => {
+    const raw = JSON.parse(JSON.stringify(fixture()));
+    delete raw.templates;
+    expect(parseData(raw).templates).toEqual([]);
+  });
   it("round-trips a reviewed card and its history", () => {
     let d = fixture();
     d = grade(d, d.cards[0].id, Rating.Easy, now);

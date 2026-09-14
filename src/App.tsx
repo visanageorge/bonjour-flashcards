@@ -12,6 +12,7 @@ import {
   Database,
   Download,
   Edit3,
+  FileText,
   FolderPlus,
   GraduationCap,
   Layers,
@@ -41,11 +42,13 @@ import {
   backupReminderVisible,
   Rating,
   State,
+  type CardTemplate,
   type Data,
   type Deck,
   type Flashcard,
 } from "./data";
 import { dataIsEmpty, loadCloudData, mergeData, saveCloudData } from "./cloud";
+import { generateCard } from "./ai";
 import { supabase, supabaseConfigured } from "./supabase";
 import {
   SUPABASE_DATABASE_LIMIT_BYTES,
@@ -62,9 +65,11 @@ type Modal =
   | { kind: "card"; card?: Flashcard }
   | { kind: "settings" }
   | { kind: "usage" }
+  | { kind: "templates" }
+  | { kind: "template"; template?: CardTemplate }
   | {
       kind: "delete";
-      target: "card" | "deck" | "reset";
+      target: "card" | "deck" | "reset" | "template";
       id: string;
       name: string;
     }
@@ -127,6 +132,10 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [authBusy, setAuthBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [cardDraft, setCardDraft] = useState({ front: "", back: "" });
   const [cloudState, setCloudState] = useState<CloudState>(
     supabaseConfigured ? "signed-out" : "local",
   );
@@ -210,8 +219,18 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (modal) dialog.current?.showModal();
-    else dialog.current?.close();
+    if (modal && dialog.current && !dialog.current.open)
+      dialog.current.showModal();
+    else if (!modal && dialog.current?.open) dialog.current.close();
+  }, [modal]);
+  useEffect(() => {
+    if (modal?.kind !== "card") return;
+    setCardDraft({
+      front: modal.card?.front ?? "",
+      back: modal.card?.back ?? "",
+    });
+    setAiInput(modal.card?.front ?? "");
+    setSelectedTemplateId(data.templates[0]?.id ?? "");
   }, [modal]);
   useEffect(() => {
     if (!notice) return;
@@ -363,6 +382,43 @@ export default function App() {
   function openUsage() {
     setModal({ kind: "usage" });
     void refreshUsage();
+  }
+  async function generateWithAI() {
+    const client = supabase;
+    const template = data.templates.find(
+      (item) => item.id === selectedTemplateId,
+    );
+    const input = aiInput.trim();
+    if (!client || !sessionRef.current) {
+      setNotice("Conectează-te pentru a folosi Gemini.");
+      return;
+    }
+    if (!template) {
+      setNotice("Alege sau creează un template.");
+      return;
+    }
+    if (!input) {
+      setNotice("Scrie cuvântul sau expresia de generat.");
+      return;
+    }
+    if (!navigator.onLine) {
+      setNotice("Generarea AI are nevoie de conexiune la internet.");
+      return;
+    }
+
+    setAiBusy(true);
+    try {
+      const generated = await generateCard(client, input, template);
+      setCardDraft({ front: generated.front, back: generated.back });
+      setNotice("Card generat. Verifică textul înainte de salvare.");
+      void refreshUsage();
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Generarea nu a reușit.",
+      );
+    } finally {
+      setAiBusy(false);
+    }
   }
   async function commit(next: Data) {
     if (busy.current) return false;
@@ -580,6 +636,37 @@ export default function App() {
         setModal(null);
         setNotice(modal.card ? "Card actualizat." : "Card adăugat.");
       }
+    } else if (modal?.kind === "template") {
+      const name = String(f.get("name")).trim();
+      const frontPrompt = String(f.get("frontPrompt")).trim();
+      const backPrompt = String(f.get("backPrompt")).trim();
+      if (!name || !frontPrompt || !backPrompt) {
+        setNotice("Completează numele și ambele prompturi.");
+        return;
+      }
+      const template = modal.template
+        ? { ...modal.template, name, frontPrompt, backPrompt }
+        : {
+            id: uid(),
+            name,
+            frontPrompt,
+            backPrompt,
+            created: new Date().toISOString(),
+          };
+      if (
+        await commit({
+          ...data,
+          templates: modal.template
+            ? data.templates.map((item) =>
+                item.id === template.id ? template : item,
+              )
+            : [...data.templates, template],
+        })
+      ) {
+        setSelectedTemplateId(template.id);
+        setModal({ kind: "templates" });
+        setNotice(modal.template ? "Template actualizat." : "Template creat.");
+      }
     } else if (modal?.kind === "settings") {
       const newPerDay = Number(f.get("newPerDay")),
         retention = Number(f.get("retention")) / 100;
@@ -605,6 +692,13 @@ export default function App() {
         cards: data.cards.filter((c) => c.id !== modal.id),
         reviews: data.reviews.filter((r) => r.cardId !== modal.id),
       };
+    else if (modal.target === "template")
+      next = {
+        ...data,
+        templates: data.templates.filter(
+          (template) => template.id !== modal.id,
+        ),
+      };
     else
       next = {
         ...data,
@@ -615,7 +709,7 @@ export default function App() {
       };
     if (await commit(next)) {
       if (modal.target === "deck") setDeckId(null);
-      setModal(null);
+      setModal(modal.target === "template" ? { kind: "templates" } : null);
       setNotice(modal.target === "reset" ? "Progres resetat." : "Șters.");
     }
   }
@@ -756,6 +850,13 @@ export default function App() {
             </p>
             <div className="note-line" />
           </div>
+          <button
+            className="nav"
+            onClick={() => setModal({ kind: "templates" })}
+          >
+            <FileText size={19} /> Template-uri
+            <span>{data.templates.length}</span>
+          </button>
           <button className="nav" onClick={openUsage}>
             <BarChart3 size={19} /> Usage
           </button>
@@ -969,11 +1070,13 @@ export default function App() {
                     {deck.name} · {labels[current.schedule.state]}
                   </div>
                   <article className="study-card">
-                    <span className="card-side">FRONT · ROMÂNĂ</span>
+                    <span className="card-side">FRONT · FRANCEZĂ</span>
                     <h2>{current.front}</h2>
                     {revealed && (
                       <div className="answer">
-                        <span className="card-side">BACK · FRANCEZĂ</span>
+                        <span className="card-side">
+                          BACK · ROMÂNĂ ȘI EXEMPLE
+                        </span>
                         <p>{current.back}</p>
                       </div>
                     )}
@@ -1313,11 +1416,17 @@ export default function App() {
                     : "Un cuvânt nou"
                   : modal?.kind === "usage"
                     ? "Usage"
-                    : modal?.kind === "settings"
-                      ? "Setările tale"
-                      : modal?.kind === "delete" && modal.target === "reset"
-                        ? "Resetezi progresul?"
-                        : "Confirmă ștergerea"}
+                    : modal?.kind === "templates"
+                      ? "Template-uri AI"
+                      : modal?.kind === "template"
+                        ? modal.template
+                          ? "Editează template-ul"
+                          : "Template nou"
+                        : modal?.kind === "settings"
+                          ? "Setările tale"
+                          : modal?.kind === "delete" && modal.target === "reset"
+                            ? "Resetezi progresul?"
+                            : "Confirmă ștergerea"}
             </h2>
             <button
               className="icon"
@@ -1409,26 +1518,101 @@ export default function App() {
                 <p className="dialog-intro">
                   Un singur lucru de reținut. Un pas mai aproape.
                 </p>
+                {!modal.card && (
+                  <section className="ai-generator">
+                    <div className="ai-generator-title">
+                      <Sparkles size={18} />
+                      <div>
+                        <strong>Generează cu Gemini</strong>
+                        <span>Folosește unul dintre template-urile tale.</span>
+                      </div>
+                    </div>
+                    {data.templates.length ? (
+                      <>
+                        <label className="field compact">
+                          Template
+                          <select
+                            value={selectedTemplateId}
+                            onChange={(event) =>
+                              setSelectedTemplateId(event.target.value)
+                            }
+                          >
+                            {data.templates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field compact">
+                          Cuvânt sau expresie în română
+                          <input
+                            value={aiInput}
+                            onChange={(event) => setAiInput(event.target.value)}
+                            maxLength={500}
+                            placeholder="Ex. aller"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="ai-generate-button"
+                          disabled={aiBusy}
+                          onClick={() => void generateWithAI()}
+                        >
+                          <Sparkles size={17} />
+                          {aiBusy ? "Gemini generează…" : "Generează cardul"}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary full"
+                        onClick={() => setModal({ kind: "template" })}
+                      >
+                        <Plus size={17} /> Creează primul template
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-button manage-templates"
+                      onClick={() => setModal({ kind: "templates" })}
+                    >
+                      Gestionează template-urile
+                    </button>
+                  </section>
+                )}
                 <label className="field">
-                  Front <span>cuvântul sau întrebarea</span>
+                  Front <span>cuvântul sau expresia în franceză</span>
                   <textarea
                     name="front"
                     required
-                    autoFocus
+                    autoFocus={!data.templates.length || Boolean(modal.card)}
                     maxLength={2000}
-                    defaultValue={modal.card?.front}
-                    placeholder="Ex. a merge"
+                    value={cardDraft.front}
+                    onChange={(event) =>
+                      setCardDraft((draft) => ({
+                        ...draft,
+                        front: event.target.value,
+                      }))
+                    }
+                    placeholder="Ex. aller"
                     rows={3}
                   />
                 </label>
                 <label className="field">
-                  Back <span>traducerea și explicația</span>
+                  Back <span>traducerea, exemplele și conjugarea</span>
                   <textarea
                     name="back"
                     required
                     maxLength={12000}
-                    defaultValue={modal.card?.back}
-                    placeholder="aller — a merge&#10;Je vais à la maison."
+                    value={cardDraft.back}
+                    onChange={(event) =>
+                      setCardDraft((draft) => ({
+                        ...draft,
+                        back: event.target.value,
+                      }))
+                    }
+                    placeholder="a merge&#10;Je vais à la maison."
                     rows={6}
                   />
                 </label>
@@ -1437,8 +1621,126 @@ export default function App() {
                     Editarea textului păstrează istoricul de studiu.
                   </p>
                 )}
-                <button className="primary full" disabled={saving}>
+                <button className="primary full" disabled={saving || aiBusy}>
                   <Check size={18} /> Salvează cardul
+                </button>
+              </>
+            )}
+            {modal?.kind === "templates" && (
+              <div className="templates-view">
+                <div className="templates-heading">
+                  <p>
+                    Prompturile descriu cum completează Gemini fața și spatele
+                    cardului.
+                  </p>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => setModal({ kind: "template" })}
+                  >
+                    <Plus size={17} /> Template nou
+                  </button>
+                </div>
+                {data.templates.length ? (
+                  <div className="template-list">
+                    {data.templates.map((template) => (
+                      <article className="template-item" key={template.id}>
+                        <div>
+                          <strong>{template.name}</strong>
+                          <span>{template.backPrompt}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="icon bordered"
+                          aria-label={`Editează ${template.name}`}
+                          onClick={() =>
+                            setModal({ kind: "template", template })
+                          }
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon bordered danger"
+                          aria-label={`Șterge ${template.name}`}
+                          onClick={() =>
+                            setModal({
+                              kind: "delete",
+                              target: "template",
+                              id: template.id,
+                              name: template.name,
+                            })
+                          }
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="template-empty">
+                    <FileText size={27} />
+                    <strong>Nu ai niciun template.</strong>
+                    <span>Creează unul pentru primul card generat cu AI.</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {modal?.kind === "template" && (
+              <>
+                <label className="field">
+                  Numele template-ului
+                  <input
+                    name="name"
+                    required
+                    autoFocus
+                    maxLength={80}
+                    defaultValue={modal.template?.name ?? "Română → Franceză"}
+                    placeholder="Ex. Vocabular franceză"
+                  />
+                </label>
+                <label className="field">
+                  Prompt pentru Front
+                  <textarea
+                    name="frontPrompt"
+                    required
+                    maxLength={6000}
+                    rows={4}
+                    defaultValue={
+                      modal.template?.frontPrompt ??
+                      `Translate the provided Romanian word or expression into French.
+
+Return only the French headword or expression.
+For nouns, include the correct definite article (le, la or l').
+For verbs, return the infinitive.`
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Prompt pentru Back
+                  <textarea
+                    name="backPrompt"
+                    required
+                    maxLength={6000}
+                    rows={9}
+                    defaultValue={
+                      modal.template?.backPrompt ??
+                      `Give the Romanian translation of the French word or expression from the front.
+
+For nouns:
+- state the gender;
+- provide two short example sentences in French.
+
+For verbs:
+- provide two short example sentences in French;
+- conjugate the verb in the present tense.
+
+Keep the result concise and suitable for a flashcard.`
+                    }
+                  />
+                </label>
+                <button className="primary full" disabled={saving}>
+                  <Check size={18} /> Salvează template-ul
                 </button>
               </>
             )}
@@ -1683,7 +1985,9 @@ export default function App() {
                 <p className="confirm-copy">
                   {modal.target === "reset"
                     ? `Toate cardurile din „${modal.name}” vor deveni noi, iar istoricul deck-ului va fi șters.`
-                    : `„${modal.name}” ${modal.target === "deck" ? "și toate cardurile și recapitulările sale vor fi șterse" : "și istoricul acestui card vor fi șterse"}.`}{" "}
+                    : modal.target === "template"
+                      ? `Template-ul „${modal.name}” va fi șters.`
+                      : `„${modal.name}” ${modal.target === "deck" ? "și toate cardurile și recapitulările sale vor fi șterse" : "și istoricul acestui card vor fi șterse"}.`}{" "}
                   Această acțiune nu poate fi anulată.
                 </p>
                 <div className="backup-buttons">

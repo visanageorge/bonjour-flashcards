@@ -27,6 +27,14 @@ type CloudReview = {
   log: unknown;
 };
 
+type CloudTemplate = {
+  id: string;
+  name: string;
+  front_prompt: string;
+  back_prompt: string;
+  created_at: string;
+};
+
 type CloudSettings = {
   new_per_day: number;
   retention: number | string;
@@ -35,7 +43,11 @@ type CloudSettings = {
 const jsonValue = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 export function dataIsEmpty(data: Data) {
-  return data.decks.length === 0 && data.cards.length === 0;
+  return (
+    data.decks.length === 0 &&
+    data.cards.length === 0 &&
+    data.templates.length === 0
+  );
 }
 
 /** Combines two first-sync libraries without discarding cards from either one. */
@@ -51,6 +63,7 @@ export function mergeData(cloud: Data, local: Data): Data {
     decks: mergeById(cloud.decks, local.decks),
     cards: mergeById(cloud.cards, local.cards),
     reviews: mergeById(cloud.reviews, local.reviews),
+    templates: mergeById(cloud.templates, local.templates),
     settings: local.settings,
   };
 }
@@ -59,43 +72,61 @@ export async function loadCloudData(
   client: SupabaseClient,
   userId: string,
 ): Promise<Data | null> {
-  const [decksResult, cardsResult, reviewsResult, settingsResult] =
-    await Promise.all([
-      client
-        .from("decks")
-        .select("id,name,description,created_at")
-        .eq("user_id", userId)
-        .order("created_at"),
-      client
-        .from("cards")
-        .select("id,deck_id,front,back,created_at,schedule")
-        .eq("user_id", userId)
-        .order("created_at"),
-      client
-        .from("reviews")
-        .select("id,card_id,deck_id,reviewed_at,rating,was_new,log")
-        .eq("user_id", userId)
-        .order("reviewed_at"),
-      client
-        .from("user_settings")
-        .select("new_per_day,retention")
-        .eq("user_id", userId)
-        .maybeSingle(),
-    ]);
+  const [
+    decksResult,
+    cardsResult,
+    reviewsResult,
+    templatesResult,
+    settingsResult,
+  ] = await Promise.all([
+    client
+      .from("decks")
+      .select("id,name,description,created_at")
+      .eq("user_id", userId)
+      .order("created_at"),
+    client
+      .from("cards")
+      .select("id,deck_id,front,back,created_at,schedule")
+      .eq("user_id", userId)
+      .order("created_at"),
+    client
+      .from("reviews")
+      .select("id,card_id,deck_id,reviewed_at,rating,was_new,log")
+      .eq("user_id", userId)
+      .order("reviewed_at"),
+    client
+      .from("templates")
+      .select("id,name,front_prompt,back_prompt,created_at")
+      .eq("user_id", userId)
+      .order("created_at"),
+    client
+      .from("user_settings")
+      .select("new_per_day,retention")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
 
   const error =
     decksResult.error ??
     cardsResult.error ??
     reviewsResult.error ??
+    templatesResult.error ??
     settingsResult.error;
   if (error) throw error;
 
   const decks = (decksResult.data ?? []) as CloudDeck[];
   const cards = (cardsResult.data ?? []) as CloudCard[];
   const reviews = (reviewsResult.data ?? []) as CloudReview[];
+  const templates = (templatesResult.data ?? []) as CloudTemplate[];
   const settings = settingsResult.data as CloudSettings | null;
 
-  if (!decks.length && !cards.length && !reviews.length && !settings)
+  if (
+    !decks.length &&
+    !cards.length &&
+    !reviews.length &&
+    !templates.length &&
+    !settings
+  )
     return null;
 
   const defaults = emptyData();
@@ -124,6 +155,13 @@ export async function loadCloudData(
       wasNew: row.was_new,
       log: row.log,
     })),
+    templates: templates.map((row) => ({
+      id: row.id,
+      name: row.name,
+      frontPrompt: row.front_prompt,
+      backPrompt: row.back_prompt,
+      created: row.created_at,
+    })),
     settings: settings
       ? {
           newPerDay: settings.new_per_day,
@@ -135,7 +173,7 @@ export async function loadCloudData(
 
 async function deleteRowsMissingLocally(
   client: SupabaseClient,
-  table: "reviews" | "cards" | "decks",
+  table: "reviews" | "cards" | "decks" | "templates",
   userId: string,
   localIds: string[],
 ) {
@@ -206,6 +244,20 @@ export async function saveCloudData(
     if (result.error) throw result.error;
   }
 
+  if (data.templates.length) {
+    const result = await client.from("templates").upsert(
+      data.templates.map((template) => ({
+        id: template.id,
+        user_id: userId,
+        name: template.name,
+        front_prompt: template.frontPrompt,
+        back_prompt: template.backPrompt,
+        created_at: template.created,
+      })),
+    );
+    if (result.error) throw result.error;
+  }
+
   const settings = await client.from("user_settings").upsert({
     user_id: userId,
     new_per_day: data.settings.newPerDay,
@@ -225,6 +277,12 @@ export async function saveCloudData(
     "cards",
     userId,
     data.cards.map((card) => card.id),
+  );
+  await deleteRowsMissingLocally(
+    client,
+    "templates",
+    userId,
+    data.templates.map((template) => template.id),
   );
   await deleteRowsMissingLocally(
     client,

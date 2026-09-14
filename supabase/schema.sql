@@ -102,6 +102,33 @@ grant select, insert, update, delete on public.cards to authenticated;
 grant select, insert, update, delete on public.reviews to authenticated;
 grant select, insert, update, delete on public.user_settings to authenticated;
 
+-- AI card templates, private to each authenticated account.
+create table if not exists public.templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null check (char_length(trim(name)) between 1 and 80),
+  front_prompt text not null check (char_length(trim(front_prompt)) between 1 and 6000),
+  back_prompt text not null check (char_length(trim(back_prompt)) between 1 and 6000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (id, user_id)
+);
+
+create index if not exists templates_user_id_idx on public.templates(user_id);
+
+drop trigger if exists templates_set_updated_at on public.templates;
+create trigger templates_set_updated_at before update on public.templates
+for each row execute function public.set_updated_at();
+
+alter table public.templates enable row level security;
+
+drop policy if exists "templates own rows" on public.templates;
+create policy "templates own rows" on public.templates for all to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
+
+grant select, insert, update, delete on public.templates to authenticated;
+
 -- Shared AI usage for the two authenticated accounts.
 -- Re-running this section is safe.
 create table if not exists public.ai_usage_daily (
@@ -229,14 +256,16 @@ as $$
       coalesce(pg_total_relation_size(to_regclass('public.cards')), 0) +
       coalesce(pg_total_relation_size(to_regclass('public.reviews')), 0) +
       coalesce(pg_total_relation_size(to_regclass('public.user_settings')), 0) +
-      coalesce(pg_total_relation_size(to_regclass('public.ai_usage_daily')), 0)
+      coalesce(pg_total_relation_size(to_regclass('public.ai_usage_daily')), 0) +
+      coalesce(pg_total_relation_size(to_regclass('public.templates')), 0)
     )::bigint,
     (
       (select count(*) from public.decks) +
       (select count(*) from public.cards) +
       (select count(*) from public.reviews) +
       (select count(*) from public.user_settings) +
-      (select count(*) from public.ai_usage_daily)
+      (select count(*) from public.ai_usage_daily) +
+      (select count(*) from public.templates)
     )::bigint;
 $$;
 

@@ -37,7 +37,11 @@ export function localUsage(data: Data): UsageSummary {
     edgeInvocationsThisMonth: 0,
     databaseBytes: new TextEncoder().encode(JSON.stringify(data)).byteLength,
     databaseRows:
-      data.decks.length + data.cards.length + data.reviews.length + 1,
+      data.decks.length +
+      data.cards.length +
+      data.reviews.length +
+      data.templates.length +
+      1,
     shared: false,
   };
 }

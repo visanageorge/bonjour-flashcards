@@ -127,14 +127,16 @@ as $$
       coalesce(pg_total_relation_size(to_regclass('public.cards')), 0) +
       coalesce(pg_total_relation_size(to_regclass('public.reviews')), 0) +
       coalesce(pg_total_relation_size(to_regclass('public.user_settings')), 0) +
-      coalesce(pg_total_relation_size(to_regclass('public.ai_usage_daily')), 0)
+      coalesce(pg_total_relation_size(to_regclass('public.ai_usage_daily')), 0) +
+      coalesce(pg_total_relation_size(to_regclass('public.templates')), 0)
     )::bigint,
     (
       (select count(*) from public.decks) +
       (select count(*) from public.cards) +
       (select count(*) from public.reviews) +
       (select count(*) from public.user_settings) +
-      (select count(*) from public.ai_usage_daily)
+      (select count(*) from public.ai_usage_daily) +
+      (select count(*) from public.templates)
     )::bigint;
 $$;
 

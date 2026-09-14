@@ -8,3 +8,4 @@ dist/
 *.tsbuildinfo
 .firebase/
 firebase-debug.log*
+supabase/.temp/

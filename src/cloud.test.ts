@@ -22,6 +22,15 @@ describe("cloud first sync", () => {
   it("detects a library without decks and cards as empty", () => {
     expect(dataIsEmpty(emptyData())).toBe(true);
     expect(dataIsEmpty(library("local", "Local"))).toBe(false);
+    const templateOnly = emptyData();
+    templateOnly.templates.push({
+      id: "template",
+      name: "AI",
+      frontPrompt: "Front",
+      backPrompt: "Back",
+      created: "2026-01-01T00:00:00Z",
+    });
+    expect(dataIsEmpty(templateOnly)).toBe(false);
   });
 
   it("keeps records from both cloud and local libraries", () => {

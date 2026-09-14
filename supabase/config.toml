@@ -1,0 +1,4 @@
+project_id = "bonjour-flashcards"
+
+[functions.generate-card]
+verify_jwt = true

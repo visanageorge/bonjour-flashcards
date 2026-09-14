@@ -23,11 +23,19 @@ export type Review = {
   wasNew: boolean;
   log: unknown;
 };
+export type CardTemplate = {
+  id: string;
+  name: string;
+  frontPrompt: string;
+  backPrompt: string;
+  created: string;
+};
 export type Data = {
   version: 1;
   decks: Deck[];
   cards: Flashcard[];
   reviews: Review[];
+  templates: CardTemplate[];
   settings: { newPerDay: number; retention: number };
 };
 export const emptyData = (): Data => ({
@@ -35,6 +43,7 @@ export const emptyData = (): Data => ({
   decks: [],
   cards: [],
   reviews: [],
+  templates: [],
   settings: { newPerDay: 15, retention: 0.9 },
 });
 export const uid = () => {
@@ -137,13 +146,19 @@ export function parseData(raw: unknown): Data {
     !d.settings
   )
     throw Error("Fișierul nu este un backup Bonjour valid.");
+  const templates = Array.isArray(d.templates) ? d.templates : [];
   const validText = (v: unknown) =>
     typeof v === "string" && v.trim().length > 0;
   const validDate = (v: unknown) =>
     typeof v === "string" && Number.isFinite(Date.parse(v));
   const unique = (list: { id: string }[]) =>
     new Set(list.map((x) => x.id)).size === list.length;
-  if (!unique(d.decks) || !unique(d.cards) || !unique(d.reviews))
+  if (
+    !unique(d.decks) ||
+    !unique(d.cards) ||
+    !unique(d.reviews) ||
+    !unique(templates)
+  )
     throw Error("Backupul conține identificatori duplicați.");
   if (
     !Number.isInteger(d.settings.newPerDay) ||
@@ -164,6 +179,17 @@ export function parseData(raw: unknown): Data {
     )
   )
     throw Error("Deck invalid în backup.");
+  if (
+    templates.some(
+      (template) =>
+        !validText(template.id) ||
+        !validText(template.name) ||
+        !validText(template.frontPrompt) ||
+        !validText(template.backPrompt) ||
+        !validDate(template.created),
+    )
+  )
+    throw Error("Template invalid în backup.");
   const ids = new Set(d.decks.map((x) => x.id));
   const cards = d.cards.map((c) => {
     if (
@@ -210,7 +236,7 @@ export function parseData(raw: unknown): Data {
     )
   )
     throw Error("Istoric invalid în backup.");
-  return { ...d, cards };
+  return { ...d, templates, cards };
 }
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

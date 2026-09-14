@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CardTemplate } from "./data";
+import { normalizeCardText, type CardTemplate } from "./data";
 
 export type GeneratedCard = {
   front: string;
@@ -51,7 +51,7 @@ export async function generateCard(
 
   return {
     ...data,
-    front: data.front.trim(),
-    back: data.back.trim(),
+    front: normalizeCardText(data.front),
+    back: normalizeCardText(data.back),
   };
 }

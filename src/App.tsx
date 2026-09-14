@@ -32,6 +32,7 @@ import {
   grade,
   interval,
   newCard,
+  normalizeCardText,
   outcomes,
   parseData,
   queue,
@@ -616,8 +617,8 @@ export default function App() {
         openDeck(d.id);
       }
     } else if (modal?.kind === "card" && deckId) {
-      const front = String(f.get("front")).trim(),
-        back = String(f.get("back")).trim();
+      const front = normalizeCardText(String(f.get("front"))),
+        back = normalizeCardText(String(f.get("back")));
       if (!front || !back) {
         setNotice("Completează frontul și backul cardului.");
         return;
@@ -1545,12 +1546,12 @@ export default function App() {
                           </select>
                         </label>
                         <label className="field compact">
-                          Cuvânt sau expresie în română
+                          Cuvânt sau expresie în franceză
                           <input
                             value={aiInput}
                             onChange={(event) => setAiInput(event.target.value)}
                             maxLength={500}
-                            placeholder="Ex. aller"
+                            placeholder="Ex. chat"
                           />
                         </label>
                         <button
@@ -1595,7 +1596,7 @@ export default function App() {
                         front: event.target.value,
                       }))
                     }
-                    placeholder="Ex. aller"
+                    placeholder="Ex. chat"
                     rows={3}
                   />
                 </label>
@@ -1695,7 +1696,7 @@ export default function App() {
                     required
                     autoFocus
                     maxLength={80}
-                    defaultValue={modal.template?.name ?? "Română → Franceză"}
+                    defaultValue={modal.template?.name ?? "Franceză → Română"}
                     placeholder="Ex. Vocabular franceză"
                   />
                 </label>
@@ -1708,11 +1709,16 @@ export default function App() {
                     rows={4}
                     defaultValue={
                       modal.template?.frontPrompt ??
-                      `Translate the provided Romanian word or expression into French.
+                      `The input will be a French word or expression exactly as I found it in a book.
 
-Return only the French headword or expression.
-For nouns, include the correct definite article (le, la or l').
-For verbs, return the infinitive.`
+Create the front of the flashcard:
+- preserve the French word or expression as written;
+- if it is a noun, add the correct definite article (le, la or l') and clearly indicate its gender;
+- if it has a distinct feminine form, add that form too;
+- if it is not a noun, do not add an article;
+- do not include the Romanian translation, examples, definitions or conjugations.
+
+Keep the result concise.`
                     }
                   />
                 </label>
@@ -1725,17 +1731,16 @@ For verbs, return the infinitive.`
                     rows={9}
                     defaultValue={
                       modal.template?.backPrompt ??
-                      `Give the Romanian translation of the French word or expression from the front.
+                      `Create the back of the flashcard for the provided French word or expression.
 
-For nouns:
-- state the gender;
-- provide two short example sentences in French.
+Include:
+- the correct Romanian translation;
+- two short, natural example sentences in French;
+- if the word is a verb, its complete conjugation in the present indicative: je, tu, il/elle/on, nous, vous, ils/elles;
+- if the verb is reflexive, use the correct reflexive pronouns;
+- if it is not a verb, do not include a conjugation.
 
-For verbs:
-- provide two short example sentences in French;
-- conjugate the verb in the present tense.
-
-Keep the result concise and suitable for a flashcard.`
+Use correct French spelling, accents and grammar. Keep the result clear and concise.`
                     }
                   />
                 </label>

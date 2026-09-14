@@ -6,6 +6,7 @@ import {
   queue,
   parseData,
   outcomes,
+  normalizeCardText,
   Rating,
   State,
   BACKUP_INTERVAL_MS,
@@ -67,6 +68,22 @@ describe("Study scheduling", () => {
     expect(queue(d, "d", now).map((c) => c.id)).toEqual([d.cards[0].id]);
   });
 });
+describe("Card text formatting", () => {
+  it("turns HTML and escaped break tags into real line breaks", () => {
+    expect(
+      normalizeCardText(
+        String.raw`a spune, a zice<br><br>Présent :\<br>je dis&lt;br&gt;Exemples :`,
+      ),
+    ).toBe("a spune, a zice\n\nPrésent :\nje dis\nExemples :");
+  });
+
+  it("collapses excessive blank lines and trims trailing spaces", () => {
+    expect(normalizeCardText("mot  \r\n\r\n\r\nexemple  ")).toBe(
+      "mot\n\nexemple",
+    );
+  });
+});
+
 describe("Backup integrity", () => {
   it("shows the reminder after seven days until it is dismissed", () => {
     const start = now.toISOString();

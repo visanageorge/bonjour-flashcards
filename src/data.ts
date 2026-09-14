@@ -60,13 +60,24 @@ export const newCard = (
 ): Flashcard => ({
   id: uid(),
   deckId,
-  front,
-  back,
+  front: normalizeCardText(front),
+  back: normalizeCardText(back),
   created: new Date().toISOString(),
   schedule: createEmptyCard(),
 });
 export const dayKey = (date: Date) =>
   `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+export function normalizeCardText(value: string) {
+  return value
+    .replace(/\\?<br\s*\/?\s*>/gi, "\n")
+    .replace(/&lt;br\s*\/?&gt;/gi, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 export const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 export function backupReminderVisible(
   lastBackupAt: string | null | undefined,
@@ -223,7 +234,12 @@ export function parseData(raw: unknown): Data {
       )
     )
       throw Error("Programare invalidă în backup.");
-    return { ...c, schedule: { ...s, due, last_review: last } };
+    return {
+      ...c,
+      front: normalizeCardText(c.front),
+      back: normalizeCardText(c.back),
+      schedule: { ...s, due, last_review: last },
+    };
   });
   if (
     d.reviews.some(

@@ -26,7 +26,7 @@ Then deploy:
 npm run deploy:supabase
 ```
 
-The deployed function requires `GEMINI_API_KEY` in Supabase Edge Function Secrets. It optionally accepts `GEMINI_MODEL` and otherwise uses `gemini-2.5-flash`.
+The deployed function requires `GEMINI_API_KEY` in Supabase Edge Function Secrets. It optionally accepts `GEMINI_MODEL` and otherwise uses `gemini-3.6-flash`.
 
 ## Publish the web app
 

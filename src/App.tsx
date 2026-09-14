@@ -3,11 +3,13 @@ import type { Session } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   BookOpen,
   Check,
   ChevronRight,
   Cloud,
   CloudOff,
+  Database,
   Download,
   Edit3,
   FolderPlus,
@@ -19,6 +21,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -44,10 +47,21 @@ import {
 } from "./data";
 import { dataIsEmpty, loadCloudData, mergeData, saveCloudData } from "./cloud";
 import { supabase, supabaseConfigured } from "./supabase";
+import {
+  SUPABASE_DATABASE_LIMIT_BYTES,
+  SUPABASE_EDGE_FUNCTION_LIMIT,
+  formatBytes,
+  formatCount,
+  loadSharedUsage,
+  localUsage,
+  usagePercent,
+  type UsageState,
+} from "./usage";
 type Modal =
   | { kind: "deck"; deck?: Deck }
   | { kind: "card"; card?: Flashcard }
   | { kind: "settings" }
+  | { kind: "usage" }
   | {
       kind: "delete";
       target: "card" | "deck" | "reset";
@@ -116,6 +130,10 @@ export default function App() {
   const [cloudState, setCloudState] = useState<CloudState>(
     supabaseConfigured ? "signed-out" : "local",
   );
+  const [usage, setUsage] = useState<UsageState>({
+    status: "idle",
+    summary: localUsage(emptyData()),
+  });
   const importer = useRef<HTMLInputElement>(null),
     dialog = useRef<HTMLDialogElement>(null),
     busy = useRef(false),
@@ -324,6 +342,27 @@ export default function App() {
   function syncNow() {
     if (!session) return;
     enqueueCloudSave(dataRef.current, true);
+  }
+  async function refreshUsage() {
+    const fallback = localUsage(dataRef.current);
+    const client = supabase;
+    const currentSession = sessionRef.current;
+    if (!client || !currentSession) {
+      setUsage({ status: "ready", summary: fallback });
+      return;
+    }
+
+    setUsage({ status: "loading", summary: fallback });
+    try {
+      const summary = await loadSharedUsage(client, dataRef.current);
+      setUsage({ status: "ready", summary });
+    } catch {
+      setUsage({ status: "error", summary: fallback });
+    }
+  }
+  function openUsage() {
+    setModal({ kind: "usage" });
+    void refreshUsage();
   }
   async function commit(next: Data) {
     if (busy.current) return false;
@@ -717,6 +756,9 @@ export default function App() {
             </p>
             <div className="note-line" />
           </div>
+          <button className="nav" onClick={openUsage}>
+            <BarChart3 size={19} /> Usage
+          </button>
           <button
             className="nav"
             onClick={() => setModal({ kind: "settings" })}
@@ -755,6 +797,9 @@ export default function App() {
             <span className="language">
               <i /> FRANCEZĂ
             </span>
+            <button className="icon" aria-label="Usage" onClick={openUsage}>
+              <BarChart3 size={20} />
+            </button>
             <button
               className="icon"
               aria-label="Setări"
@@ -1266,11 +1311,13 @@ export default function App() {
                   ? modal.card
                     ? "Editează cardul"
                     : "Un cuvânt nou"
-                  : modal?.kind === "settings"
-                    ? "Setările tale"
-                    : modal?.kind === "delete" && modal.target === "reset"
-                      ? "Resetezi progresul?"
-                      : "Confirmă ștergerea"}
+                  : modal?.kind === "usage"
+                    ? "Usage"
+                    : modal?.kind === "settings"
+                      ? "Setările tale"
+                      : modal?.kind === "delete" && modal.target === "reset"
+                        ? "Resetezi progresul?"
+                        : "Confirmă ștergerea"}
             </h2>
             <button
               className="icon"
@@ -1394,6 +1441,122 @@ export default function App() {
                   <Check size={18} /> Salvează cardul
                 </button>
               </>
+            )}
+            {modal?.kind === "usage" && (
+              <div className="usage-view">
+                <section className="usage-highlight">
+                  <span className="usage-icon">
+                    <Sparkles size={22} />
+                  </span>
+                  <div>
+                    <span>LIMITĂ ZILNICĂ COMUNĂ</span>
+                    <strong>
+                      {formatCount(usage.summary.aiToday)}
+                      <small> / {formatCount(usage.summary.dailyLimit)}</small>
+                    </strong>
+                    <p>Generări Gemini folosite astăzi de Vlad și Andreea.</p>
+                  </div>
+                </section>
+                <div
+                  className="usage-progress"
+                  role="progressbar"
+                  aria-label="Generări Gemini folosite astăzi"
+                  aria-valuemin={0}
+                  aria-valuemax={usage.summary.dailyLimit}
+                  aria-valuenow={usage.summary.aiToday}
+                >
+                  <span
+                    style={{
+                      width: `${usagePercent(
+                        usage.summary.aiToday,
+                        usage.summary.dailyLimit,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="usage-grid">
+                  <article className="usage-card">
+                    <Sparkles size={18} />
+                    <span>Gemini luna aceasta</span>
+                    <strong>{formatCount(usage.summary.aiThisMonth)}</strong>
+                    <small>generări comune</small>
+                  </article>
+                  <article className="usage-card">
+                    <BarChart3 size={18} />
+                    <span>Tokeni Gemini</span>
+                    <strong>
+                      {formatCount(
+                        usage.summary.inputTokensThisMonth +
+                          usage.summary.outputTokensThisMonth,
+                      )}
+                    </strong>
+                    <small>
+                      {formatCount(usage.summary.inputTokensThisMonth)} input ·{" "}
+                      {formatCount(usage.summary.outputTokensThisMonth)} output
+                    </small>
+                  </article>
+                  <article className="usage-card">
+                    <Database size={18} />
+                    <span>Baza de date Supabase</span>
+                    <strong>{formatBytes(usage.summary.databaseBytes)}</strong>
+                    <small>
+                      din {formatBytes(SUPABASE_DATABASE_LIMIT_BYTES)} ·{" "}
+                      {formatCount(usage.summary.databaseRows)} înregistrări
+                    </small>
+                    <div className="usage-mini-progress">
+                      <span
+                        style={{
+                          width: `${usagePercent(
+                            usage.summary.databaseBytes,
+                            SUPABASE_DATABASE_LIMIT_BYTES,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </article>
+                  <article className="usage-card">
+                    <RefreshCw size={18} />
+                    <span>Supabase Edge Functions</span>
+                    <strong>
+                      {formatCount(usage.summary.edgeInvocationsThisMonth)}
+                    </strong>
+                    <small>
+                      din {formatCount(SUPABASE_EDGE_FUNCTION_LIMIT)} pe lună
+                    </small>
+                    <div className="usage-mini-progress">
+                      <span
+                        style={{
+                          width: `${usagePercent(
+                            usage.summary.edgeInvocationsThisMonth,
+                            SUPABASE_EDGE_FUNCTION_LIMIT,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </article>
+                </div>
+                <p className="usage-footnote">
+                  {usage.summary.shared
+                    ? "Total comun pentru ambele conturi. Valorile Gemini vin din răspunsurile API, iar spațiul bazei de date este o estimare a tabelelor aplicației."
+                    : "Momentan vezi estimarea locală. Rulează schema Usage în Supabase pentru totalul comun al ambelor conturi."}
+                </p>
+                {usage.status === "error" && (
+                  <p role="status" className="usage-warning">
+                    Contorizarea comună nu este activă încă în Supabase.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="secondary full"
+                  disabled={usage.status === "loading"}
+                  onClick={() => void refreshUsage()}
+                >
+                  <RefreshCw size={17} />
+                  {usage.status === "loading"
+                    ? "Se actualizează…"
+                    : "Actualizează Usage"}
+                </button>
+              </div>
             )}
             {modal?.kind === "settings" && (
               <>

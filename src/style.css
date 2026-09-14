@@ -1616,3 +1616,150 @@ dialog::backdrop {
     min-height: 34px;
   }
 }
+
+.usage-view {
+  display: grid;
+  gap: 18px;
+}
+
+.usage-highlight {
+  display: flex;
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid #4b664b;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #293a28, #222b21);
+}
+
+.usage-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #b8d6ae;
+  color: #263b28;
+}
+
+.usage-highlight > div {
+  min-width: 0;
+}
+
+.usage-highlight > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #9db298;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1.35px;
+}
+
+.usage-highlight strong {
+  display: block;
+  color: #edf5e9;
+  font-size: 31px;
+  font-weight: 550;
+  letter-spacing: -1px;
+}
+
+.usage-highlight strong small {
+  color: #8ea08a;
+  font-size: 16px;
+}
+
+.usage-highlight p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.usage-progress,
+.usage-mini-progress {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #171c17;
+}
+
+.usage-progress {
+  margin-top: -10px;
+}
+
+.usage-progress span,
+.usage-mini-progress span {
+  display: block;
+  min-width: 2px;
+  height: 100%;
+  border-radius: inherit;
+  background: #9fc69a;
+}
+
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.usage-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #394338;
+  border-radius: 11px;
+  background: #252b24;
+}
+
+.usage-card > svg {
+  margin-bottom: 17px;
+  color: #9fbd99;
+}
+
+.usage-card > span,
+.usage-card > small {
+  display: block;
+  color: #8f9d8b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.usage-card > strong {
+  display: block;
+  margin: 5px 0 2px;
+  color: #e9efe5;
+  font-size: 22px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.usage-mini-progress {
+  height: 4px;
+  margin-top: 12px;
+}
+
+.usage-footnote,
+.usage-warning {
+  margin: 0;
+  padding: 12px 13px;
+  border-radius: 8px;
+  background: #242b23;
+  color: #96a493;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.usage-warning {
+  margin-top: -8px;
+  border: 1px solid #6f5b42;
+  color: #d0b38d;
+  background: #302a21;
+}
+
+@media (max-width: 520px) {
+  .usage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .usage-highlight {
+    padding: 15px;
+  }
+}

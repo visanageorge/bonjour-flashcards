@@ -11,6 +11,8 @@ import {
   State,
   BACKUP_INTERVAL_MS,
   backupReminderVisible,
+  masteryLevel,
+  shuffledDeckCards,
 } from "./data";
 const now = new Date("2026-09-12T12:00:00Z");
 function fixture() {
@@ -66,6 +68,34 @@ describe("Study scheduling", () => {
     const later = new Date(+d.cards[1].schedule.due + 1);
     expect(queue(d, "d", later)[0].id).toBe(d.cards[1].id);
     expect(queue(d, "d", now).map((c) => c.id)).toEqual([d.cards[0].id]);
+  });
+
+  it("builds a shuffled free-practice queue without changing the deck", () => {
+    const d = fixture();
+    const originalOrder = d.cards.map((card) => card.id);
+    const practice = shuffledDeckCards(d, "d", () => 0);
+    expect(practice.map((card) => card.id)).toEqual([
+      originalOrder[1],
+      originalOrder[0],
+    ]);
+    expect(d.cards.map((card) => card.id)).toEqual(originalOrder);
+    expect(new Set(practice.map((card) => card.id))).toEqual(
+      new Set(originalOrder),
+    );
+  });
+
+  it("derives a 0-9 memory level from the FSRS stability", () => {
+    const card = newCard("d", "dire", "a spune").schedule;
+    expect(masteryLevel(card)).toBe(0);
+    expect(
+      masteryLevel({ ...card, state: State.Learning, reps: 1, stability: 0.5 }),
+    ).toBe(1);
+    expect(
+      masteryLevel({ ...card, state: State.Review, reps: 5, stability: 30 }),
+    ).toBe(6);
+    expect(
+      masteryLevel({ ...card, state: State.Review, reps: 12, stability: 240 }),
+    ).toBe(9);
   });
 });
 describe("Card text formatting", () => {

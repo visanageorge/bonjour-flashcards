@@ -724,8 +724,33 @@ footer span {
 .new-dot {
   background: #778174 !important;
 }
-.study-button {
+.study-actions {
   margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.practice-button {
+  white-space: nowrap;
+}
+.word-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.word-meta .word-status {
+  margin-bottom: 0;
+}
+.mastery-badge {
+  border: 1px solid #455440;
+  border-radius: 999px;
+  color: #bfd0b4;
+  font-size: 9px;
+  letter-spacing: 0.45px;
+  padding: 3px 7px;
+  text-transform: uppercase;
 }
 .list-controls {
   display: flex;
@@ -1289,8 +1314,11 @@ dialog::backdrop {
   .stats > div {
     padding: 0 20px;
   }
-  .study-button {
+  .study-actions {
     width: 100%;
+  }
+  .study-actions > * {
+    flex: 1;
   }
 }
 @media (max-width: 760px) {
@@ -1922,5 +1950,11 @@ dialog::backdrop {
 
   .templates-heading .primary {
     width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .study-actions {
+    flex-direction: column;
   }
 }

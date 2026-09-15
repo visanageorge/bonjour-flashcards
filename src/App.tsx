@@ -36,6 +36,8 @@ import {
   outcomes,
   parseData,
   queue,
+  masteryLevel,
+  shuffledDeckCards,
   readData,
   writeData,
   uid,
@@ -122,6 +124,8 @@ export default function App() {
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all");
   const [study, setStudy] = useState(false),
+    [freePractice, setFreePractice] = useState(false),
+    [practiceIds, setPracticeIds] = useState<string[]>([]),
     [revealed, setRevealed] = useState(false),
     [done, setDone] = useState(0),
     [total, setTotal] = useState(0),
@@ -447,11 +451,13 @@ export default function App() {
     cards = data.cards.filter((c) => c.deckId === deckId),
     available = deckId ? queue(data, deckId, now) : [],
     current = study
-      ? (cards.find((c) => c.id === studyId) ?? available[0])
+      ? freePractice
+        ? cards.find((c) => c.id === practiceIds[done])
+        : (cards.find((c) => c.id === studyId) ?? available[0])
       : undefined;
   useEffect(() => {
-    if (study && current && !studyId) setStudyId(current.id);
-  }, [study, current?.id, studyId]);
+    if (study && !freePractice && current && !studyId) setStudyId(current.id);
+  }, [study, freePractice, current?.id, studyId]);
   const studiedToday = data.reviews.filter(
     (r) => dayKey(new Date(r.at)) === dayKey(now),
   );
@@ -500,11 +506,30 @@ export default function App() {
   function startStudy() {
     setNow(new Date());
     setStudyId(available[0]?.id ?? null);
+    setFreePractice(false);
+    setPracticeIds([]);
     setStudy(true);
     setRevealed(false);
     setDone(0);
     setTotal(available.length);
     setUndo(null);
+  }
+  function startFreePractice() {
+    if (!deckId) return;
+    const practiceCards = shuffledDeckCards(data, deckId);
+    setNow(new Date());
+    setStudyId(null);
+    setFreePractice(true);
+    setPracticeIds(practiceCards.map((card) => card.id));
+    setStudy(true);
+    setRevealed(false);
+    setDone(0);
+    setTotal(practiceCards.length);
+    setUndo(null);
+  }
+  function nextPracticeCard() {
+    setDone((count) => count + 1);
+    setRevealed(false);
   }
   async function answer(
     r: Rating.Again | Rating.Hard | Rating.Good | Rating.Easy,
@@ -1048,7 +1073,15 @@ export default function App() {
                   <ArrowLeft size={17} /> Înapoi la deck
                 </button>
                 <span>
-                  {done} {done === 1 ? "răspuns" : "răspunsuri"} în sesiune
+                  {done}{" "}
+                  {freePractice
+                    ? done === 1
+                      ? "card"
+                      : "carduri"
+                    : done === 1
+                      ? "răspuns"
+                      : "răspunsuri"}{" "}
+                  în sesiune
                 </span>
               </div>
               <div
@@ -1056,19 +1089,28 @@ export default function App() {
                 role="progressbar"
                 aria-label="Progresul sesiunii"
                 aria-valuemin={0}
-                aria-valuemax={Math.max(total, done + available.length)}
+                aria-valuemax={Math.max(
+                  1,
+                  freePractice
+                    ? total
+                    : Math.max(total, done + available.length),
+                )}
                 aria-valuenow={done}
               >
                 <span
                   style={{
-                    width: `${(done / Math.max(1, total, done + available.length)) * 100}%`,
+                    width: `${(done / Math.max(1, freePractice ? total : Math.max(total, done + available.length))) * 100}%`,
                   }}
                 />
               </div>
               {current ? (
                 <div className="study-area">
                   <div className="eyebrow">
-                    {deck.name} · {labels[current.schedule.state]}
+                    {deck.name} ·{" "}
+                    {freePractice
+                      ? "REPETIȚIE LIBERĂ"
+                      : labels[current.schedule.state]}{" "}
+                    · NIVEL {masteryLevel(current.schedule)}/9
                   </div>
                   <article className="study-card">
                     <span className="card-side">FRONT · FRANCEZĂ</span>
@@ -1093,6 +1135,13 @@ export default function App() {
                       onClick={() => setRevealed(true)}
                     >
                       Arată răspunsul <ArrowRight size={19} />
+                    </button>
+                  ) : freePractice ? (
+                    <button
+                      className="primary reveal"
+                      onClick={nextPracticeCard}
+                    >
+                      Următorul card <ArrowRight size={19} />
                     </button>
                   ) : (
                     <>
@@ -1148,7 +1197,7 @@ export default function App() {
                       </p>
                     </>
                   )}
-                  {undo && (
+                  {!freePractice && undo && (
                     <button
                       className="text-button undo"
                       disabled={saving}
@@ -1164,18 +1213,30 @@ export default function App() {
                     <Check size={32} />
                   </div>
                   <div className="eyebrow">BIEN JOUÉ !</div>
-                  <h1>{done ? "Un pas înainte." : "Ești la zi."}</h1>
+                  <h1>
+                    {freePractice
+                      ? "Repetiție încheiată."
+                      : done
+                        ? "Un pas înainte."
+                        : "Ești la zi."}
+                  </h1>
                   <p>
-                    {done
-                      ? `Ai dat ${done} ${done === 1 ? "răspuns" : "răspunsuri"} în această sesiune.`
-                      : "Nu ai carduri disponibile chiar acum."}
-                    <br />
-                    {nextDue(cards, now)}
+                    {freePractice
+                      ? `Ai repetat ${done} ${done === 1 ? "card" : "carduri"} fără să modifici programarea FSRS.`
+                      : done
+                        ? `Ai dat ${done} ${done === 1 ? "răspuns" : "răspunsuri"} în această sesiune.`
+                        : "Nu ai carduri disponibile chiar acum."}
+                    {!freePractice && (
+                      <>
+                        <br />
+                        {nextDue(cards, now)}
+                      </>
+                    )}
                   </p>
                   <button className="primary" onClick={() => setStudy(false)}>
                     Înapoi la deck <ArrowRight size={18} />
                   </button>
-                  {undo && (
+                  {!freePractice && undo && (
                     <button className="text-button" onClick={undoReview}>
                       Anulează ultimul răspuns
                     </button>
@@ -1247,14 +1308,23 @@ export default function App() {
                     </span>
                   </div>
                 </div>
-                <button
-                  className="primary study-button"
-                  disabled={!available.length}
-                  onClick={startStudy}
-                >
-                  <GraduationCap size={20} /> Studiază deck-ul{" "}
-                  <ArrowRight size={18} />
-                </button>
+                <div className="study-actions">
+                  <button
+                    className="primary study-button"
+                    disabled={!available.length}
+                    onClick={startStudy}
+                  >
+                    <GraduationCap size={20} /> Studiază azi{" "}
+                    <ArrowRight size={18} />
+                  </button>
+                  <button
+                    className="secondary practice-button"
+                    disabled={!cards.length}
+                    onClick={startFreePractice}
+                  >
+                    Repetă liber
+                  </button>
+                </div>
               </section>
               <div className="section-heading">
                 <h2>
@@ -1327,16 +1397,21 @@ export default function App() {
                         className="word-content"
                         onClick={() => setModal({ kind: "card", card: c })}
                       >
-                        <span className="word-status">
-                          <i
-                            className={
-                              c.schedule.state === State.New ? "new-dot" : ""
-                            }
-                          />
-                          {labels[c.schedule.state]}
-                          {c.schedule.state !== State.New &&
-                            ` · ${c.schedule.due <= now ? "disponibil acum" : new Intl.DateTimeFormat("ro", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(c.schedule.due)}`}
-                        </span>
+                        <div className="word-meta">
+                          <span className="word-status">
+                            <i
+                              className={
+                                c.schedule.state === State.New ? "new-dot" : ""
+                              }
+                            />
+                            {labels[c.schedule.state]}
+                            {c.schedule.state !== State.New &&
+                              ` · ${c.schedule.due <= now ? "disponibil acum" : new Intl.DateTimeFormat("ro", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(c.schedule.due)}`}
+                          </span>
+                          <span className="mastery-badge">
+                            Nivel {masteryLevel(c.schedule)}/9
+                          </span>
+                        </div>
                         <h3>{c.front}</h3>
                         <p>{c.back}</p>
                       </button>

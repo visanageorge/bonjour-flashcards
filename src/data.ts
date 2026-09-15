@@ -104,6 +104,32 @@ export function queue(data: Data, deckId: string, now = new Date()) {
     .slice(0, Math.max(0, data.settings.newPerDay - introduced));
   return [...due, ...fresh];
 }
+
+export function shuffledDeckCards(
+  data: Data,
+  deckId: string,
+  random: () => number = Math.random,
+) {
+  const cards = data.cards.filter((card) => card.deckId === deckId);
+  const shuffled = [...cards];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [
+      shuffled[swapIndex],
+      shuffled[index],
+    ];
+  }
+  return shuffled;
+}
+
+export function masteryLevel(card: Card) {
+  if (card.state === State.New || card.reps === 0) return 0;
+  const thresholdsInDays = [1, 3, 7, 14, 30, 60, 120, 240];
+  return (
+    1 +
+    thresholdsInDays.filter((threshold) => card.stability >= threshold).length
+  );
+}
 export function outcomes(card: Flashcard, retention: number, now: Date) {
   return fsrs({ request_retention: retention, enable_fuzz: false }).repeat(
     card.schedule,

@@ -130,6 +130,27 @@ export function masteryLevel(card: Card) {
     thresholdsInDays.filter((threshold) => card.stability >= threshold).length
   );
 }
+
+export function quizPrompt(back: string) {
+  const firstLine = normalizeCardText(back).split("\n")[0] ?? "";
+  return firstLine.replace(/^(?:\*\*)?traducere(?:\*\*)?\s*:\s*/iu, "").trim();
+}
+
+function comparableFrench(value: string) {
+  return normalizeCardText(value)
+    .toLocaleLowerCase("fr")
+    .replace(/[’‘]/g, "'")
+    .replace(/['"]\s+/g, "'")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s*\((?:m|f|masculin|féminin|feminin)\.?\)\s*$/giu, "")
+    .replace(/[.!?]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function quizAnswerCorrect(answer: string, front: string) {
+  return comparableFrench(answer) === comparableFrench(front);
+}
 export function outcomes(card: Flashcard, retention: number, now: Date) {
   return fsrs({ request_retention: retention, enable_fuzz: false }).repeat(
     card.schedule,

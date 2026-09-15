@@ -13,6 +13,8 @@ import {
   backupReminderVisible,
   masteryLevel,
   shuffledDeckCards,
+  quizPrompt,
+  quizAnswerCorrect,
 } from "./data";
 const now = new Date("2026-09-12T12:00:00Z");
 function fixture() {
@@ -96,6 +98,20 @@ describe("Study scheduling", () => {
     expect(
       masteryLevel({ ...card, state: State.Review, reps: 12, stability: 240 }),
     ).toBe(9);
+  });
+
+  it("extracts the Romanian prompt from structured and older card backs", () => {
+    expect(
+      quizPrompt("Traducere: a spune, a zice\n\nConjugare la prezent:\nje dis"),
+    ).toBe("a spune, a zice");
+    expect(quizPrompt("scaun\n\nExemple:\nUne chaise rouge.")).toBe("scaun");
+  });
+
+  it("checks French answers while requiring the article and accents", () => {
+    expect(quizAnswerCorrect("L’école", "l'école (f.)")).toBe(true);
+    expect(quizAnswerCorrect("  le chat. ", "le chat (m.)")).toBe(true);
+    expect(quizAnswerCorrect("chat", "le chat (m.)")).toBe(false);
+    expect(quizAnswerCorrect("l'ecole", "l'école (f.)")).toBe(false);
   });
 });
 describe("Card text formatting", () => {

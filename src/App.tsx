@@ -38,6 +38,8 @@ import {
   queue,
   masteryLevel,
   shuffledDeckCards,
+  quizPrompt,
+  quizAnswerCorrect,
   readData,
   writeData,
   uid,
@@ -125,7 +127,13 @@ export default function App() {
     [filter, setFilter] = useState("all");
   const [study, setStudy] = useState(false),
     [freePractice, setFreePractice] = useState(false),
+    [testMode, setTestMode] = useState(false),
     [practiceIds, setPracticeIds] = useState<string[]>([]),
+    [quizAnswer, setQuizAnswer] = useState(""),
+    [quizResult, setQuizResult] = useState<"correct" | "incorrect" | null>(
+      null,
+    ),
+    [quizCorrect, setQuizCorrect] = useState(0),
     [revealed, setRevealed] = useState(false),
     [done, setDone] = useState(0),
     [total, setTotal] = useState(0),
@@ -451,13 +459,14 @@ export default function App() {
     cards = data.cards.filter((c) => c.deckId === deckId),
     available = deckId ? queue(data, deckId, now) : [],
     current = study
-      ? freePractice
+      ? freePractice || testMode
         ? cards.find((c) => c.id === practiceIds[done])
         : (cards.find((c) => c.id === studyId) ?? available[0])
       : undefined;
   useEffect(() => {
-    if (study && !freePractice && current && !studyId) setStudyId(current.id);
-  }, [study, freePractice, current?.id, studyId]);
+    if (study && !freePractice && !testMode && current && !studyId)
+      setStudyId(current.id);
+  }, [study, freePractice, testMode, current?.id, studyId]);
   const studiedToday = data.reviews.filter(
     (r) => dayKey(new Date(r.at)) === dayKey(now),
   );
@@ -475,9 +484,11 @@ export default function App() {
             : c.schedule.state !== State.New)) &&
       normalize(`${c.front} ${c.back}`).includes(normalize(search)),
   );
-  const preview = current
-    ? outcomes(current, data.settings.retention, now)
-    : null;
+  const fixedSession = freePractice || testMode;
+  const preview =
+    current && !fixedSession
+      ? outcomes(current, data.settings.retention, now)
+      : null;
   const showBackupReminder = backupReminderVisible(
     backupClock,
     backupDismissed,
@@ -507,7 +518,11 @@ export default function App() {
     setNow(new Date());
     setStudyId(available[0]?.id ?? null);
     setFreePractice(false);
+    setTestMode(false);
     setPracticeIds([]);
+    setQuizAnswer("");
+    setQuizResult(null);
+    setQuizCorrect(0);
     setStudy(true);
     setRevealed(false);
     setDone(0);
@@ -520,7 +535,11 @@ export default function App() {
     setNow(new Date());
     setStudyId(null);
     setFreePractice(true);
+    setTestMode(false);
     setPracticeIds(practiceCards.map((card) => card.id));
+    setQuizAnswer("");
+    setQuizResult(null);
+    setQuizCorrect(0);
     setStudy(true);
     setRevealed(false);
     setDone(0);
@@ -530,6 +549,35 @@ export default function App() {
   function nextPracticeCard() {
     setDone((count) => count + 1);
     setRevealed(false);
+  }
+  function startTest() {
+    if (!deckId) return;
+    const testCards = shuffledDeckCards(data, deckId);
+    setNow(new Date());
+    setStudyId(null);
+    setFreePractice(false);
+    setTestMode(true);
+    setPracticeIds(testCards.map((card) => card.id));
+    setQuizAnswer("");
+    setQuizResult(null);
+    setQuizCorrect(0);
+    setStudy(true);
+    setRevealed(false);
+    setDone(0);
+    setTotal(testCards.length);
+    setUndo(null);
+  }
+  function checkQuizAnswer(event: FormEvent) {
+    event.preventDefault();
+    if (!current || quizResult || !quizAnswer.trim()) return;
+    const correct = quizAnswerCorrect(quizAnswer, current.front);
+    setQuizResult(correct ? "correct" : "incorrect");
+    if (correct) setQuizCorrect((count) => count + 1);
+  }
+  function nextQuizQuestion() {
+    setDone((count) => count + 1);
+    setQuizAnswer("");
+    setQuizResult(null);
   }
   async function answer(
     r: Rating.Again | Rating.Hard | Rating.Good | Rating.Easy,
@@ -1074,13 +1122,17 @@ export default function App() {
                 </button>
                 <span>
                   {done}{" "}
-                  {freePractice
+                  {testMode
                     ? done === 1
-                      ? "card"
-                      : "carduri"
-                    : done === 1
-                      ? "răspuns"
-                      : "răspunsuri"}{" "}
+                      ? "întrebare"
+                      : "întrebări"
+                    : freePractice
+                      ? done === 1
+                        ? "card"
+                        : "carduri"
+                      : done === 1
+                        ? "răspuns"
+                        : "răspunsuri"}{" "}
                   în sesiune
                 </span>
               </div>
@@ -1091,7 +1143,7 @@ export default function App() {
                 aria-valuemin={0}
                 aria-valuemax={Math.max(
                   1,
-                  freePractice
+                  fixedSession
                     ? total
                     : Math.max(total, done + available.length),
                 )}
@@ -1099,7 +1151,7 @@ export default function App() {
               >
                 <span
                   style={{
-                    width: `${(done / Math.max(1, freePractice ? total : Math.max(total, done + available.length))) * 100}%`,
+                    width: `${(done / Math.max(1, fixedSession ? total : Math.max(total, done + available.length))) * 100}%`,
                   }}
                 />
               </div>
@@ -1107,97 +1159,169 @@ export default function App() {
                 <div className="study-area">
                   <div className="eyebrow">
                     {deck.name} ·{" "}
-                    {freePractice
-                      ? "REPETIȚIE LIBERĂ"
-                      : labels[current.schedule.state]}{" "}
+                    {testMode
+                      ? "TEST ROMÂNĂ → FRANCEZĂ"
+                      : freePractice
+                        ? "REPETIȚIE LIBERĂ"
+                        : labels[current.schedule.state]}{" "}
                     · NIVEL {masteryLevel(current.schedule)}/9
                   </div>
-                  <article className="study-card">
-                    <span className="card-side">FRONT · FRANCEZĂ</span>
-                    <h2>{current.front}</h2>
-                    {revealed && (
-                      <div className="answer">
-                        <span className="card-side">
-                          BACK · ROMÂNĂ ȘI EXEMPLE
-                        </span>
-                        <p>{current.back}</p>
-                      </div>
-                    )}
-                    {!revealed && (
-                      <span className="card-hint">
-                        Amintește-ți răspunsul înainte să întorci cardul.
+                  {testMode ? (
+                    <article
+                      className={`study-card quiz-card ${quizResult ?? ""}`}
+                    >
+                      <span className="card-side">
+                        ROMÂNĂ · TRADU ÎN FRANCEZĂ
                       </span>
-                    )}
-                  </article>
-                  {!revealed ? (
-                    <button
-                      className="primary reveal"
-                      onClick={() => setRevealed(true)}
-                    >
-                      Arată răspunsul <ArrowRight size={19} />
-                    </button>
-                  ) : freePractice ? (
-                    <button
-                      className="primary reveal"
-                      onClick={nextPracticeCard}
-                    >
-                      Următorul card <ArrowRight size={19} />
-                    </button>
+                      <h2>{quizPrompt(current.back)}</h2>
+                      <form className="quiz-form" onSubmit={checkQuizAnswer}>
+                        <label htmlFor="quiz-answer">
+                          Scrie cuvântul împreună cu articolul
+                        </label>
+                        <input
+                          id="quiz-answer"
+                          autoFocus
+                          autoComplete="off"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          disabled={quizResult !== null}
+                          value={quizAnswer}
+                          onChange={(event) =>
+                            setQuizAnswer(event.target.value)
+                          }
+                          placeholder="de exemplu: la chaise"
+                        />
+                        {quizResult ? (
+                          <>
+                            <div className={`quiz-feedback ${quizResult}`}>
+                              {quizResult === "correct" ? (
+                                <Check size={25} />
+                              ) : (
+                                <X size={25} />
+                              )}
+                              <div>
+                                <strong>
+                                  {quizResult === "correct"
+                                    ? "Corect!"
+                                    : "Nu încă."}
+                                </strong>
+                                {quizResult === "incorrect" && (
+                                  <span>
+                                    Răspunsul corect: <b>{current.front}</b>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="primary quiz-next"
+                              onClick={nextQuizQuestion}
+                            >
+                              Următorul cuvânt <ArrowRight size={19} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="submit"
+                            className="primary quiz-check"
+                            disabled={!quizAnswer.trim()}
+                          >
+                            Verifică răspunsul
+                          </button>
+                        )}
+                      </form>
+                    </article>
                   ) : (
                     <>
-                      <p className="rating-prompt">
-                        Cât de ușor ți-ai amintit?
-                      </p>
-                      <div className="ratings">
-                        {(
-                          [
-                            {
-                              r: Rating.Again,
-                              title: "Again",
-                              hint: "Nu am știut",
-                              cls: "again",
-                            },
-                            {
-                              r: Rating.Hard,
-                              title: "Hard",
-                              hint: "Cu dificultate",
-                              cls: "hard",
-                            },
-                            {
-                              r: Rating.Good,
-                              title: "Good",
-                              hint: "Am știut",
-                              cls: "good",
-                            },
-                            {
-                              r: Rating.Easy,
-                              title: "Easy",
-                              hint: "Foarte ușor",
-                              cls: "easy",
-                            },
-                          ] as const
-                        ).map((x) => (
-                          <button
-                            disabled={saving}
-                            className={x.cls}
-                            key={x.r}
-                            onClick={() => answer(x.r)}
-                            title={x.hint}
-                          >
-                            <strong>{x.title}</strong>
-                            <span>
-                              {preview && interval(preview[x.r].card.due, now)}
+                      <article className="study-card">
+                        <span className="card-side">FRONT · FRANCEZĂ</span>
+                        <h2>{current.front}</h2>
+                        {revealed && (
+                          <div className="answer">
+                            <span className="card-side">
+                              BACK · ROMÂNĂ ȘI EXEMPLE
                             </span>
-                          </button>
-                        ))}
-                      </div>
-                      <p className="study-help">
-                        Ai uitat? Alege Again. Hard înseamnă că ți-ai amintit,
-                        cu efort.
-                      </p>
+                            <p>{current.back}</p>
+                          </div>
+                        )}
+                        {!revealed && (
+                          <span className="card-hint">
+                            Amintește-ți răspunsul înainte să întorci cardul.
+                          </span>
+                        )}
+                      </article>
+                      {!revealed ? (
+                        <button
+                          className="primary reveal"
+                          onClick={() => setRevealed(true)}
+                        >
+                          Arată răspunsul <ArrowRight size={19} />
+                        </button>
+                      ) : freePractice ? (
+                        <button
+                          className="primary reveal"
+                          onClick={nextPracticeCard}
+                        >
+                          Următorul card <ArrowRight size={19} />
+                        </button>
+                      ) : (
+                        <>
+                          <p className="rating-prompt">
+                            Cât de ușor ți-ai amintit?
+                          </p>
+                          <div className="ratings">
+                            {(
+                              [
+                                {
+                                  r: Rating.Again,
+                                  title: "Again",
+                                  hint: "Nu am știut",
+                                  cls: "again",
+                                },
+                                {
+                                  r: Rating.Hard,
+                                  title: "Hard",
+                                  hint: "Cu dificultate",
+                                  cls: "hard",
+                                },
+                                {
+                                  r: Rating.Good,
+                                  title: "Good",
+                                  hint: "Am știut",
+                                  cls: "good",
+                                },
+                                {
+                                  r: Rating.Easy,
+                                  title: "Easy",
+                                  hint: "Foarte ușor",
+                                  cls: "easy",
+                                },
+                              ] as const
+                            ).map((x) => (
+                              <button
+                                disabled={saving}
+                                className={x.cls}
+                                key={x.r}
+                                onClick={() => answer(x.r)}
+                                title={x.hint}
+                              >
+                                <strong>{x.title}</strong>
+                                <span>
+                                  {preview &&
+                                    interval(preview[x.r].card.due, now)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="study-help">
+                            Ai uitat? Alege Again. Hard înseamnă că ți-ai
+                            amintit, cu efort.
+                          </p>
+                        </>
+                      )}
                     </>
                   )}
-                  {!freePractice && undo && (
+                  {!testMode && !freePractice && undo && (
                     <button
                       className="text-button undo"
                       disabled={saving}
@@ -1214,19 +1338,23 @@ export default function App() {
                   </div>
                   <div className="eyebrow">BIEN JOUÉ !</div>
                   <h1>
-                    {freePractice
-                      ? "Repetiție încheiată."
-                      : done
-                        ? "Un pas înainte."
-                        : "Ești la zi."}
+                    {testMode
+                      ? "Test încheiat."
+                      : freePractice
+                        ? "Repetiție încheiată."
+                        : done
+                          ? "Un pas înainte."
+                          : "Ești la zi."}
                   </h1>
                   <p>
-                    {freePractice
-                      ? `Ai repetat ${done} ${done === 1 ? "card" : "carduri"} fără să modifici programarea FSRS.`
-                      : done
-                        ? `Ai dat ${done} ${done === 1 ? "răspuns" : "răspunsuri"} în această sesiune.`
-                        : "Nu ai carduri disponibile chiar acum."}
-                    {!freePractice && (
+                    {testMode
+                      ? `Ai răspuns corect la ${quizCorrect} din ${total} cuvinte. Testul nu a modificat programarea FSRS.`
+                      : freePractice
+                        ? `Ai repetat ${done} ${done === 1 ? "card" : "carduri"} fără să modifici programarea FSRS.`
+                        : done
+                          ? `Ai dat ${done} ${done === 1 ? "răspuns" : "răspunsuri"} în această sesiune.`
+                          : "Nu ai carduri disponibile chiar acum."}
+                    {!fixedSession && (
                       <>
                         <br />
                         {nextDue(cards, now)}
@@ -1236,7 +1364,7 @@ export default function App() {
                   <button className="primary" onClick={() => setStudy(false)}>
                     Înapoi la deck <ArrowRight size={18} />
                   </button>
-                  {!freePractice && undo && (
+                  {!testMode && !freePractice && undo && (
                     <button className="text-button" onClick={undoReview}>
                       Anulează ultimul răspuns
                     </button>
@@ -1323,6 +1451,13 @@ export default function App() {
                     onClick={startFreePractice}
                   >
                     Repetă liber
+                  </button>
+                  <button
+                    className="secondary test-button"
+                    disabled={!cards.length}
+                    onClick={startTest}
+                  >
+                    Test RO → FR
                   </button>
                 </div>
               </section>

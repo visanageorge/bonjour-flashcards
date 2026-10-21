@@ -1,0 +1,48 @@
+{
+  "verifiedAt": "2026-10-13T06:48:46.963Z",
+  "cards": 2728,
+  "monthlyCounts": [
+    {
+      "name": "Luna 01",
+      "cards": 445
+    },
+    {
+      "name": "Luna 02",
+      "cards": 450
+    },
+    {
+      "name": "Luna 03",
+      "cards": 449
+    },
+    {
+      "name": "Luna 04",
+      "cards": 450
+    },
+    {
+      "name": "Luna 05",
+      "cards": 450
+    },
+    {
+      "name": "Luna 06",
+      "cards": 484
+    }
+  ],
+  "masterCards": 2728,
+  "reviews": 0,
+  "allSchedulesReset": true,
+  "globalNewPerDay": 15,
+  "verbCardsWithConjugations": 584,
+  "retiredDeckAbsent": true,
+  "exactContentAndIdentityMatch": true,
+  "allExamplesTranslated": true,
+  "hosting": "https://flashcards-b5425.web.app",
+  "publishedAsset": "/assets/index-Cp_EFWt1.js",
+  "publishedAssetMatchesBuild": true,
+  "before": {
+    "cards": 461,
+    "reviews": 74,
+    "decks": 1
+  },
+  "backup": "supabase/vlad-before-catalog-replacement-2026-10-13T06-43-56-593Z.json",
+  "rollback": "tmp/catalog-rollback.sql"
+}

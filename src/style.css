@@ -489,6 +489,84 @@ main {
 .deck-tile:hover {
   border-color: #647860;
 }
+.deck-tile-shell {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.deck-tile-shell .deck-tile {
+  width: 100%;
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+}
+.deck-paused .deck-symbol {
+  background: #303330;
+  color: var(--muted);
+}
+.deck-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 12px 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.deck-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.deck-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #4e5b4b;
+  border-radius: 24px;
+  background: #293229;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+.deck-switch.is-off {
+  background: #292c29;
+  color: var(--muted);
+  border-color: var(--line);
+}
+.switch-track {
+  display: flex;
+  align-items: center;
+  width: 28px;
+  height: 16px;
+  border-radius: 12px;
+  background: #536e50;
+  padding: 2px;
+}
+.switch-track > span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d2e6cd;
+  transform: translateX(12px);
+}
+.is-off .switch-track {
+  background: #444944;
+}
+.is-off .switch-track > span {
+  background: #a3aaa1;
+  transform: translateX(0);
+}
+.deck-off-label {
+  color: var(--muted);
+  font-size: 10px;
+}
 .tile-top {
   display: flex;
   align-items: center;
@@ -1158,6 +1236,7 @@ dialog::backdrop {
   gap: 14px;
 }
 .loading {
+  padding: 24px;
   min-height: 100dvh;
   display: flex;
   align-items: center;
@@ -1218,6 +1297,19 @@ dialog::backdrop {
 .account-buttons {
   display: grid;
   gap: 12px;
+}
+.otp-form {
+  display: grid;
+  gap: 12px;
+}
+.otp-form .field {
+  margin-bottom: 4px;
+}
+.otp-code-input {
+  text-align: center;
+  letter-spacing: 0.45em;
+  font-size: 22px !important;
+  font-variant-numeric: tabular-nums;
 }
 .account-button {
   width: 100%;
@@ -1284,6 +1376,13 @@ dialog::backdrop {
 }
 .loading p {
   max-width: 550px;
+}
+.loading details {
+  max-width: min(550px, 100%);
+  overflow-wrap: anywhere;
+}
+.loading summary {
+  cursor: pointer;
 }
 @media (min-width: 1450px) {
   .deck-grid {

@@ -1,0 +1,11 @@
+catalog_id	original_front	corrected_front	evidence
+FR-01472	guide (m I fi)	un guide / une guide	Nota de gen din indexul Assimil este coruptă; intrarea descrie persoana de gen masculin sau feminin.
+FR-01642	la lotterie	la loterie	Textul lecției 23 din Assimil folosește forma «loterie»; «lotterie» apare doar în indexul inconsistent.
+FR-01692	la pizzéria	la pizzeria	Textul lecției 25 din Assimil folosește «pizzeria»; accentul apare numai într-o intrare inconsistentă din index.
+FR-00288	le désagréable	désagréable	Textul lecției 41 din Assimil are adjectivul «désagréable» în «Un accueil désagréable»; articolul din catalog este eronat.
+FR-01868	la modèle	le modèle	Lecția 74 din Assimil folosește «ce modèle» pentru un obiect vestimentar; marcajul feminin din index este inconsistent.
+FR-01910	boîte à/aux lettres	la boîte aux lettres	Catalogul conține o notație de variante fără articol; forma de card folosește construcția uzuală din textul Assimil.
+FR-01934	vaisselle (m sing)	la vaisselle	Substantivul «vaisselle» este feminin singular; marcajul din catalog este corupt.
+FR-02042	la billeterie	la billetterie	Corecție ortografică: «billetterie» are două litere t.
+FR-02056	passer (un spectable)	passer (un spectacle)	Corecție OCR în nota contextuală: substantivul francez este «spectacle».
+FINAL-ADD-0248	une cotte	une cocotte	Corecție aprobată explicit de utilizator; Vocabulaire PDF 76: une cocotte et son couvercle.

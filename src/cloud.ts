@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { emptyData, parseData, type Data } from "./data";
+import { emptyData, parseData, mergeDeleted, type Data } from "./data";
 
 type CloudDeck = {
   id: string;
   name: string;
   description: string;
   created_at: string;
+  enabled?: boolean;
 };
 
 type CloudCard = {
@@ -41,6 +42,70 @@ type CloudSettings = {
 };
 
 const jsonValue = (value: unknown) => JSON.parse(JSON.stringify(value));
+import { AUDITED_CATALOG_DECK_IDS } from "./catalog";
+export { AUDITED_CATALOG_MARKER } from "./catalog";
+export function isAuditedCatalog(data: Data) {
+  return AUDITED_CATALOG_DECK_IDS.every(id => data.decks.some(deck => deck.id === id));
+}
+const PAGE_SIZE = 1000;
+const WRITE_BATCH_SIZE = 200;
+const DELETE_BATCH_SIZE = 100;
+
+async function loadRows(
+  client: SupabaseClient,
+  table: "decks" | "cards" | "reviews" | "templates",
+  userId: string,
+  columns: string,
+  orderColumn: string,
+) {
+  const rows: unknown[] = [];
+  const seen = new Set<string>();
+  let total: number | null = null;
+  for (let start = 0; ; ) {
+    const result = await client
+      .from(table)
+      .select(columns, { count: "exact" })
+      .eq("user_id", userId)
+      .order(orderColumn)
+      .order("id")
+      .range(start, start + PAGE_SIZE - 1);
+    if (result.error) throw result.error;
+    const page = (result.data ?? []) as unknown as { id: string }[];
+    if (typeof result.count === "number") {
+      if (total !== null && total !== result.count) throw Error("Biblioteca s-a schimbat în timpul încărcării. Reîncearcă sincronizarea.");
+      total = result.count;
+    }
+    if (!page.length) {
+      if (total !== null && rows.length !== total) throw Error("Biblioteca nu a fost încărcată complet. Datele locale au fost păstrate.");
+      break;
+    }
+    for (const row of page) {
+      if (typeof row.id !== "string" || !row.id) throw Error("Serverul a returnat un rând fără identificator.");
+      if (seen.has(row.id)) throw Error("Serverul a repetat o pagină. Sincronizarea a fost oprită pentru a păstra datele.");
+      seen.add(row.id);
+    }
+    rows.push(...page);
+    start += page.length;
+    if (total !== null && rows.length >= total) {
+      if (rows.length !== total) throw Error("Numărul cardurilor încărcate nu corespunde serverului.");
+      break;
+    }
+  }
+  return rows;
+}
+
+async function upsertRows(
+  client: SupabaseClient,
+  table: "decks" | "cards" | "reviews" | "templates",
+  rows: Record<string, unknown>[],
+) {
+  for (let start = 0; start < rows.length; start += WRITE_BATCH_SIZE) {
+    const result = await client
+      .from(table)
+      .upsert(rows.slice(start, start + WRITE_BATCH_SIZE));
+    if (result.error) throw result.error;
+  }
+}
 
 export function dataIsEmpty(data: Data) {
   return (
@@ -58,13 +123,19 @@ export function mergeData(cloud: Data, local: Data): Data {
     return [...rows.values()];
   };
 
+  const deleted = mergeDeleted(cloud.deleted, local.deleted);
+  const decks = mergeById(cloud.decks, local.decks).filter(row => !deleted.decks.includes(row.id));
+  const deckIds = new Set(decks.map(row => row.id));
+  const cards = mergeById(cloud.cards, local.cards).filter(row => deckIds.has(row.deckId) && !deleted.cards.includes(row.id));
+  const cardIds = new Set(cards.map(row => row.id));
   return {
     version: 1,
-    decks: mergeById(cloud.decks, local.decks),
-    cards: mergeById(cloud.cards, local.cards),
-    reviews: mergeById(cloud.reviews, local.reviews),
-    templates: mergeById(cloud.templates, local.templates),
+    decks,
+    cards,
+    reviews: mergeById(cloud.reviews, local.reviews).filter(row => cardIds.has(row.cardId) && deckIds.has(row.deckId) && !deleted.reviews.includes(row.id)),
+    templates: mergeById(cloud.templates, local.templates).filter(row => !deleted.templates.includes(row.id)),
     settings: local.settings,
+    deleted,
   };
 }
 
@@ -72,33 +143,11 @@ export async function loadCloudData(
   client: SupabaseClient,
   userId: string,
 ): Promise<Data | null> {
-  const [
-    decksResult,
-    cardsResult,
-    reviewsResult,
-    templatesResult,
-    settingsResult,
-  ] = await Promise.all([
-    client
-      .from("decks")
-      .select("id,name,description,created_at")
-      .eq("user_id", userId)
-      .order("created_at"),
-    client
-      .from("cards")
-      .select("id,deck_id,front,back,created_at,schedule")
-      .eq("user_id", userId)
-      .order("created_at"),
-    client
-      .from("reviews")
-      .select("id,card_id,deck_id,reviewed_at,rating,was_new,log")
-      .eq("user_id", userId)
-      .order("reviewed_at"),
-    client
-      .from("templates")
-      .select("id,name,front_prompt,back_prompt,created_at")
-      .eq("user_id", userId)
-      .order("created_at"),
+  const [decks, cards, reviews, templates, settingsResult] = await Promise.all([
+    loadRows(client, "decks", userId, "id,name,description,created_at,enabled", "created_at"),
+    loadRows(client, "cards", userId, "id,deck_id,front,back,created_at,schedule", "created_at"),
+    loadRows(client, "reviews", userId, "id,card_id,deck_id,reviewed_at,rating,was_new,log", "reviewed_at"),
+    loadRows(client, "templates", userId, "id,name,front_prompt,back_prompt,created_at", "created_at"),
     client
       .from("user_settings")
       .select("new_per_day,retention")
@@ -106,18 +155,7 @@ export async function loadCloudData(
       .maybeSingle(),
   ]);
 
-  const error =
-    decksResult.error ??
-    cardsResult.error ??
-    reviewsResult.error ??
-    templatesResult.error ??
-    settingsResult.error;
-  if (error) throw error;
-
-  const decks = (decksResult.data ?? []) as CloudDeck[];
-  const cards = (cardsResult.data ?? []) as CloudCard[];
-  const reviews = (reviewsResult.data ?? []) as CloudReview[];
-  const templates = (templatesResult.data ?? []) as CloudTemplate[];
+  if (settingsResult.error) throw settingsResult.error;
   const settings = settingsResult.data as CloudSettings | null;
 
   if (
@@ -132,13 +170,14 @@ export async function loadCloudData(
   const defaults = emptyData();
   return parseData({
     version: 1,
-    decks: decks.map((row) => ({
+    decks: (decks as CloudDeck[]).map((row) => ({
       id: row.id,
       name: row.name,
       description: row.description,
       created: row.created_at,
+      enabled: row.enabled ?? true,
     })),
-    cards: cards.map((row) => ({
+    cards: (cards as CloudCard[]).map((row) => ({
       id: row.id,
       deckId: row.deck_id,
       front: row.front,
@@ -146,7 +185,7 @@ export async function loadCloudData(
       created: row.created_at,
       schedule: row.schedule,
     })),
-    reviews: reviews.map((row) => ({
+    reviews: (reviews as CloudReview[]).map((row) => ({
       id: row.id,
       cardId: row.card_id,
       deckId: row.deck_id,
@@ -155,7 +194,7 @@ export async function loadCloudData(
       wasNew: row.was_new,
       log: row.log,
     })),
-    templates: templates.map((row) => ({
+    templates: (templates as CloudTemplate[]).map((row) => ({
       id: row.id,
       name: row.name,
       frontPrompt: row.front_prompt,
@@ -171,50 +210,46 @@ export async function loadCloudData(
   });
 }
 
-async function deleteRowsMissingLocally(
+async function deleteExplicitRows(
   client: SupabaseClient,
   table: "reviews" | "cards" | "decks" | "templates",
   userId: string,
-  localIds: string[],
+  ids: string[],
 ) {
-  const existing = await client.from(table).select("id").eq("user_id", userId);
-  if (existing.error) throw existing.error;
-
-  const local = new Set(localIds);
-  const stale = (existing.data ?? [])
-    .map((row: { id: string }) => row.id)
-    .filter((id: string) => !local.has(id));
-  if (!stale.length) return;
-
-  const removed = await client
-    .from(table)
-    .delete()
-    .eq("user_id", userId)
-    .in("id", stale);
-  if (removed.error) throw removed.error;
+  for (let start = 0; start < ids.length; start += DELETE_BATCH_SIZE) {
+    const removed = await client
+      .from(table)
+      .delete()
+      .eq("user_id", userId)
+      .in("id", ids.slice(start, start + DELETE_BATCH_SIZE));
+    if (removed.error) throw removed.error;
+  }
 }
 
-/** Mirrors one local library to the authenticated user's Supabase rows. */
+/** Merge incomplete local copies safely; delete only explicitly removed IDs. */
 export async function saveCloudData(
   client: SupabaseClient,
   userId: string,
   data: Data,
 ) {
+  parseData(data);
+  const remote = await loadCloudData(client, userId);
+  data = remote ? parseData(mergeData(remote, data)) : data;
   if (data.decks.length) {
-    const result = await client.from("decks").upsert(
+    await upsertRows(client, "decks",
       data.decks.map((deck) => ({
         id: deck.id,
         user_id: userId,
         name: deck.name,
         description: deck.description,
         created_at: deck.created,
+        enabled: deck.enabled !== false,
       })),
     );
-    if (result.error) throw result.error;
   }
 
   if (data.cards.length) {
-    const result = await client.from("cards").upsert(
+    await upsertRows(client, "cards",
       data.cards.map((card) => ({
         id: card.id,
         user_id: userId,
@@ -225,11 +260,10 @@ export async function saveCloudData(
         schedule: jsonValue(card.schedule),
       })),
     );
-    if (result.error) throw result.error;
   }
 
   if (data.reviews.length) {
-    const result = await client.from("reviews").upsert(
+    await upsertRows(client, "reviews",
       data.reviews.map((review) => ({
         id: review.id,
         user_id: userId,
@@ -241,11 +275,10 @@ export async function saveCloudData(
         log: jsonValue(review.log),
       })),
     );
-    if (result.error) throw result.error;
   }
 
   if (data.templates.length) {
-    const result = await client.from("templates").upsert(
+    await upsertRows(client, "templates",
       data.templates.map((template) => ({
         id: template.id,
         user_id: userId,
@@ -255,7 +288,6 @@ export async function saveCloudData(
         created_at: template.created,
       })),
     );
-    if (result.error) throw result.error;
   }
 
   const settings = await client.from("user_settings").upsert({
@@ -266,28 +298,29 @@ export async function saveCloudData(
   if (settings.error) throw settings.error;
 
   // Children are removed first so foreign keys always remain valid.
-  await deleteRowsMissingLocally(
+  await deleteExplicitRows(
     client,
     "reviews",
     userId,
-    data.reviews.map((review) => review.id),
+    data.deleted?.reviews ?? [],
   );
-  await deleteRowsMissingLocally(
+  await deleteExplicitRows(
     client,
     "cards",
     userId,
-    data.cards.map((card) => card.id),
+    data.deleted?.cards ?? [],
   );
-  await deleteRowsMissingLocally(
+  await deleteExplicitRows(
     client,
     "templates",
     userId,
-    data.templates.map((template) => template.id),
+    data.deleted?.templates ?? [],
   );
-  await deleteRowsMissingLocally(
+  await deleteExplicitRows(
     client,
     "decks",
     userId,
-    data.decks.map((deck) => deck.id),
+    data.deleted?.decks ?? [],
   );
+  return data;
 }

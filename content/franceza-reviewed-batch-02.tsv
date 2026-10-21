@@ -1,0 +1,86 @@
+catalog_id	translation	fr1	ro1	fr2	ro2	review_notes
+FR-00047	o casă	J'habite dans une maison.	Locuiesc într-o casă.	Cette maison a deux chambres.	Această casă are două camere.	
+FR-00055	un copil	Un enfant joue dans le jardin.	Un copil se joacă în grădină.	Cet enfant aime les livres.	Acest copil iubește cărțile.	
+FR-00060	o mamă	Sa mère est à la maison.	Mama lui este acasă.	Une mère parle à son enfant.	O mamă vorbește cu copilul ei.	
+FR-00070	a înțelege	Je comprends cette phrase.	Înțeleg această propoziție.	Tu comprends la question ?	Înțelegi întrebarea?	
+FR-00082	o zi întreagă	Je travaille toute la journée.	Lucrez toată ziua.	Cette journée est longue.	Această zi este lungă.	Accent pe durata zilei, nu pe o dată calendaristică.
+FR-00004	muncă; un loc de muncă	J'ai un travail à Paris.	Am un loc de muncă la Paris.	Ce travail est difficile.	Această muncă este grea.	Substantivul poate desemna activitatea sau un loc de muncă.
+FR-00022	o întâlnire programată	J'ai un rendez-vous chez le médecin.	Am o programare la medic.	Notre rendez-vous est à dix heures.	Întâlnirea noastră este la ora zece.	Poate însemna programare sau întâlnire stabilită.
+FR-00516	la revedere	Au revoir, à demain !	La revedere, pe mâine!	Je dis au revoir à mes amis.	Îmi iau rămas-bun de la prietenii mei.	
+FR-00680	partea dreaptă	La droite de la page est vide.	Partea dreaptă a paginii este goală.	Regarde la droite de la photo.	Uită-te la partea dreaptă a fotografiei.	Sens nominal; «à droite» are card separat.
+FR-01108	la dreapta	Tournez à droite après le pont.	Virați la dreapta după pod.	La pharmacie est à droite.	Farmacia este în dreapta.	
+FR-01109	la stânga	Tournez à gauche au carrefour.	Virați la stânga la intersecție.	La gare est à gauche.	Gara este în stânga.	
+FR-00058	un bărbat	Un homme attend devant la gare.	Un bărbat așteaptă în fața gării.	Cet homme parle français.	Acest bărbat vorbește franceza.	
+FR-00096	pe; deasupra	Le livre est sur la table.	Cartea este pe masă.	Le tableau est sur le mur.	Tabloul este pe perete.	Prepoziția are și alte întrebuințări; exemplele arată poziția.
+FR-00099	dimineața	Je bois du thé le matin.	Beau ceai dimineața.	Le matin, elle va à l'école.	Dimineața, ea merge la școală.	
+FR-00111	mâine	Nous partons demain.	Plecăm mâine.	À demain !	Pe mâine!	
+FR-00114	miercuri	Nous avons cours mercredi.	Avem curs miercuri.	Mercredi, je travaille à la maison.	Miercuri lucrez acasă.	
+FR-00112	o temă; un exercițiu pentru acasă	Je fais un devoir de français.	Fac o temă la franceză.	Ce devoir est facile.	Această temă este ușoară.	Aici este sensul școlar; «devoir» poate însemna și obligație.
+FR-00118	august	Je pars en vacances en août.	Plec în vacanță în august.	En août, il fait chaud.	În august este cald.	
+FR-00121	duminică	Dimanche, nous visitons nos amis.	Duminică ne vizităm prietenii.	Je me repose le dimanche.	Mă odihnesc duminica.	
+FR-00122	decembrie	Il neige souvent en décembre.	Ninge des în decembrie.	Mon anniversaire est en décembre.	Ziua mea de naștere este în decembrie.	
+FR-00124	joi	Jeudi, j'ai un examen.	Joi am un examen.	Nous nous voyons jeudi.	Ne vedem joi.	
+FR-00125	iulie	Les vacances commencent en juillet.	Vacanța începe în iulie.	En juillet, les jours sont longs.	În iulie zilele sunt lungi.	
+FR-00126	iunie	Je termine les cours en juin.	Termin cursurile în iunie.	En juin, il fait beau.	În iunie este vreme frumoasă.	
+FR-00127	luni	Lundi, je commence un nouveau cours.	Luni încep un curs nou.	Le magasin est fermé le lundi.	Magazinul este închis lunea.	
+FR-00128	mai (luna)	Il fait beau en mai.	Este vreme frumoasă în mai.	Mon cours commence en mai.	Cursul meu începe în mai.	Numele lunii, nu adverbul românesc «mai».
+FR-00129	marți	Je vais au marché mardi.	Merg la piață marți.	Le mardi, elle étudie le français.	Marțea, ea studiază franceza.	
+FR-00131	martie	Le printemps commence en mars.	Primăvara începe în martie.	Je voyage en mars.	Călătoresc în martie.	
+FR-00133	noiembrie	Il pleut souvent en novembre.	Plouă des în noiembrie.	Nous partons en novembre.	Plecăm în noiembrie.	
+FR-00134	octombrie	Mon frère arrive en octobre.	Fratele meu sosește în octombrie.	En octobre, les jours raccourcissent.	În octombrie zilele se scurtează.	
+FR-00137	sâmbătă	Samedi, je visite mes parents.	Sâmbătă îmi vizitez părinții.	Le samedi, je ne travaille pas.	Sâmbăta nu lucrez.	
+FR-00139	septembrie	L'école commence en septembre.	Școala începe în septembrie.	Je reviens en septembre.	Mă întorc în septembrie.	
+FR-00132	o lună (perioadă de timp)	Je reste ici un mois.	Rămân aici o lună.	Ce mois passe vite.	Luna aceasta trece repede.	Sens temporal; «la lune» este astrul.
+FR-00138	o săptămână	Une semaine a sept jours.	O săptămână are șapte zile.	Je pars pour une semaine.	Plec pentru o săptămână.	
+FR-00141	vineri	Vendredi, nous allons au cinéma.	Vineri mergem la cinema.	Le vendredi, je finis tôt.	Vinerea termin devreme.	
+FR-01285	a merge	Je vais à l'école.	Merg la școală.	Nous allons au marché.	Mergem la piață.	
+FR-01289	cum	Comment ça va ?	Cum merge?	Comment t'appelles-tu ?	Cum te cheamă?	
+FR-01290	și	Paul et Marie sont ici.	Paul și Marie sunt aici.	Je veux du thé et du pain.	Vreau ceai și pâine.	
+FR-01292	mulțumesc	Merci pour votre aide !	Mulțumesc pentru ajutorul dumneavoastră!	Je dis merci à mon professeur.	Îi mulțumesc profesorului meu.	
+FR-01295	tu	Tu habites ici ?	Tu locuiești aici?	Tu parles français.	Tu vorbești franceza.	
+FR-01296	voi; dumneavoastră	Vous habitez ici, madame ?	Dumneavoastră locuiți aici, doamnă?	Vous êtes mes amis.	Voi sunteți prietenii mei.	Poate fi plural familiar sau singular de politețe.
+FR-00143	un an (ca perioadă)	Une année a douze mois.	Un an are douăsprezece luni.	Cette année passe vite.	Anul acesta trece repede.	
+FR-01307	nu	Non, je ne viens pas.	Nu, nu vin.	Il dit non à cette proposition.	El refuză această propunere.	
+FR-01308	da	Oui, je comprends.	Da, înțeleg.	Elle répond oui à la question.	Ea răspunde afirmativ la întrebare.	
+FR-01310	pentru; ca să	Ce cadeau est pour toi.	Acest cadou este pentru tine.	Je lis pour apprendre.	Citesc ca să învăț.	
+FR-01315	a fi	Je veux être médecin.	Vreau să fiu medic.	Être ici avec vous me plaît.	Îmi place să fiu aici cu voi.	
+FR-01319	de; din	C'est un verre de lait.	Este un pahar de lapte.	Je viens de Paris.	Vin din Paris.	Sensul prepoziției depinde de construcție.
+FR-01320	el	Il parle français.	El vorbește franceza.	Il est mon frère.	El este fratele meu.	
+FR-01321	dar	Je veux venir, mais je travaille.	Vreau să vin, dar lucrez.	Elle est fatiguée, mais contente.	Ea este obosită, dar mulțumită.	
+FR-00162	aprilie	Nous voyageons en avril.	Călătorim în aprilie.	En avril, les arbres fleurissent.	În aprilie, copacii înfloresc.	
+FR-00163	februarie	Février est un mois court.	Februarie este o lună scurtă.	Mon cours commence en février.	Cursul meu începe în februarie.	
+FR-00164	ianuarie	L'année commence en janvier.	Anul începe în ianuarie.	En janvier, il fait froid.	În ianuarie este frig.	
+FR-01329	cu	Je viens avec mon ami.	Vin cu prietenul meu.	Elle boit du thé avec du lait.	Ea bea ceai cu lapte.	
+FR-01330	a avea	Je veux avoir un chien.	Vreau să am un câine.	Avoir du temps libre est agréable.	Este plăcut să ai timp liber.	
+FR-01331	ea	Elle habite à Paris.	Ea locuiește la Paris.	Elle est ma sœur.	Ea este sora mea.	
+FR-01337	a ști	Je sais nager.	Știu să înot.	Tu sais où il est ?	Știi unde este el?	
+FR-00174	sub	Le chat est sous la table.	Pisica este sub masă.	Mes chaussures sont sous le lit.	Pantofii mei sunt sub pat.	
+FR-01376	a vrea	Je veux partir demain.	Vreau să plec mâine.	Elle veut un café.	Ea vrea o cafea.	
+FR-01382	la (cineva acasă sau la un profesionist)	Je vais chez Paul.	Merg la Paul acasă.	Elle est chez le médecin.	Ea este la medic.	Prepoziția indică locul asociat cu o persoană.
+FR-01386	ei	Ils parlent français.	Ei vorbesc franceza.	Ils sont mes voisins.	Ei sunt vecinii mei.	
+FR-00210	a pleca	Le train part à huit heures.	Trenul pleacă la ora opt.	Nous partons demain.	Plecăm mâine.	
+FR-01395	a face	Je fais mes devoirs.	Îmi fac temele.	Elle fait un gâteau.	Ea face o prăjitură.	
+FR-01412	eu	Je parle français.	Eu vorbesc franceza.	Je suis à la maison.	Eu sunt acasă.	
+FR-01415	a mânca	Je mange une pomme.	Mănânc un măr.	Nous mangeons à midi.	Mâncăm la prânz.	
+FR-01419	de ce	Pourquoi apprends-tu le français ?	De ce înveți franceza?	Pourquoi est-il en retard ?	De ce întârzie el?	
+FR-01420	a putea	Je peux venir demain.	Pot veni mâine.	Tu peux m'aider ?	Poți să mă ajuți?	
+FR-00215	salut	Salut, Paul !	Salut, Paul!	Je dis salut à mes amis.	Îmi salut prietenii.	Salut poate fi și formulă de despărțire.
+FR-01434	niște; articol nehotărât plural	J'ai des amis ici.	Am niște prieteni aici.	Elle achète des pommes.	Ea cumpără mere.	Articolul poate rămâne netradus în română.
+FR-01438	articol hotărât plural	Les enfants jouent.	Copiii se joacă.	Je vois les livres.	Văd cărțile.	În română, articolul hotărât este de obicei atașat substantivului.
+FR-00823	eu sunt	Je suis étudiant.	Eu sunt student.	Je suis à la maison.	Sunt acasă.	
+FR-00811	eu am	J'ai un frère.	Eu am un frate.	J'ai vingt ans.	Am douăzeci de ani.	Vârsta se exprimă cu «avoir» în franceză.
+FR-00880	nu (negație cu verb)	Je ne sais pas.	Nu știu.	Elle n'habite pas ici.	Ea nu locuiește aici.	«Ne» precedă verbul, iar «pas» îl urmează în construcția de bază.
+FR-01080	un (articol nehotărât masculin)	J'ai un livre.	Am o carte.	Un homme attend dehors.	Un bărbat așteaptă afară.	Forma articolului este masculină, dar traducerea depinde de genul substantivului românesc.
+FR-01333	pentru că	Je reste ici parce que je travaille.	Rămân aici pentru că lucrez.	Elle sourit parce qu'elle est contente.	Ea zâmbește pentru că este mulțumită.	
+FR-00257	ieri	Je suis arrivé hier.	Am sosit ieri.	Hier, il a plu.	Ieri a plouat.	
+FR-01353	unde	Où est la gare ?	Unde este gara?	Où habites-tu ?	Unde locuiești?	
+FR-00271	a învăța	J'apprends le français.	Învăț franceza.	Les enfants apprennent à lire.	Copiii învață să citească.	
+FR-01309	vă rog	Un café, s'il vous plaît.	O cafea, vă rog.	Parlez plus lentement, s'il vous plaît.	Vorbiți mai rar, vă rog.	Formă de politețe; informal se folosește «s'il te plaît».
+FR-01452	a vorbi	Je parle français.	Vorbesc franceza.	Nous parlons avec Marie.	Vorbim cu Marie.	
+FR-01455	a veni	Tu viens avec moi ?	Vii cu mine?	Mon ami vient demain.	Prietenul meu vine mâine.	
+FR-01456	a vedea	Je vois la mer.	Văd marea.	Nous voyons nos amis ce soir.	Ne vedem prietenii în seara aceasta.	
+FR-01496	sau	Tu veux du thé ou du café ?	Vrei ceai sau cafea?	Nous partons lundi ou mardi.	Plecăm luni sau marți.	Fără accent: conjuncția «ou»; «où» înseamnă «unde».
+FR-01507	există; este/sunt	Il y a une boulangerie ici.	Aici este o brutărie.	Il y a deux livres sur la table.	Sunt două cărți pe masă.	Construcție impersonală.
+FR-01503	apa	L'eau est froide.	Apa este rece.	Je bois de l'eau.	Beau apă.	Substantiv feminin.
+FR-01535	a lua	Je prends le bus.	Iau autobuzul.	Prends ce livre.	Ia această carte.	
+FR-01570	când	Quand pars-tu ?	Când pleci?	Je ne sais pas quand il arrive.	Nu știu când sosește.	

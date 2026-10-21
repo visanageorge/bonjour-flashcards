@@ -1,0 +1,61 @@
+catalog_id	translation	fr1	ro1	fr2	ro2	review_notes
+FR-01000	a se deplasa	Je me déplace en bus.	Mă deplasez cu autobuzul.	Nous nous déplaçons souvent à pied.	Ne deplasăm adesea pe jos.	
+FR-01001	a se grăbi	Je me dépêche pour arriver à l'heure.	Mă grăbesc ca să ajung la timp.	Dépêche-toi, le train part bientôt !	Grăbește-te, trenul pleacă în curând!	
+FR-01004	a se spăla	Je me lave le matin.	Mă spăl dimineața.	L'enfant se lave avant le dîner.	Copilul se spală înainte de cină.	
+FR-01263	a se spăla pe mâini	Je me lave les mains avant de manger.	Mă spăl pe mâini înainte să mănânc.	Les enfants se lavent les mains.	Copiii se spală pe mâini.	
+FR-01005	a se ridica; a se trezi	Je me lève à sept heures.	Mă trezesc la ora șapte.	Il se lève pour ouvrir la porte.	El se ridică pentru a deschide ușa.	Ambele sensuri apar în uz.
+FR-01006	a se căsători	Ils se marient samedi.	Ei se căsătoresc sâmbătă.	Elle veut se marier l'année prochaine.	Ea vrea să se căsătorească anul viitor.	
+FR-01007	a se pieptăna	Je me peigne devant le miroir.	Mă pieptăn în fața oglinzii.	Elle se peigne chaque matin.	Ea se pieptănă în fiecare dimineață.	
+FR-01008	a se rătăci	Je me perds dans cette ville.	Mă rătăcesc în acest oraș.	Ne te perds pas dans la forêt !	Nu te rătăci în pădure!	
+FR-01009	a se plimba	Nous nous promenons dans le parc.	Ne plimbăm în parc.	Elle aime se promener le soir.	Îi place să se plimbe seara.	
+FR-01010	a se odihni	Je me repose après le travail.	Mă odihnesc după muncă.	Les enfants se reposent dans le jardin.	Copiii se odihnesc în grădină.	
+FR-01012	a se trezi	Je me réveille à sept heures.	Mă trezesc la ora șapte.	Elle se réveille tôt le dimanche.	Ea se trezește devreme duminica.	Accent pe ieșirea din somn, distinct de ridicarea din pat.
+FR-01264	a da mâna	Nous nous serrons la main.	Dăm mâna.	Ils se serrent la main pour se saluer.	Ei dau mâna ca să se salute.	
+FR-01013	a se îngriji; a se trata	Je me soigne quand je suis malade.	Mă tratez când sunt bolnav.	Elle se soigne à la maison.	Ea se îngrijește acasă.	
+FR-01014	a sta în picioare	Je me tiens debout dans le bus.	Stau în picioare în autobuz.	Les élèves se tiennent debout.	Elevii stau în picioare.	
+FR-01032	a ura bun venit	Nous souhaitons la bienvenue aux visiteurs.	Le urăm bun venit vizitatorilor.	Le professeur souhaite la bienvenue aux élèves.	Profesorul le urează bun venit elevilor.	
+FR-01035	a urma drumul	Suivez la route jusqu'au village.	Urmați drumul până la sat.	Nous suivons la route principale.	Urmăm drumul principal.	
+FR-00986	a se așeza	Je m'assieds sur une chaise.	Mă așez pe un scaun.	Asseyez-vous ici, s'il vous plaît.	Așezați-vă aici, vă rog.	Forma «je m'assois» este de asemenea corectă.
+FR-00987	a adormi	L'enfant s'endort vite.	Copilul adoarme repede.	Je m'endors pendant le film.	Adorm în timpul filmului.	
+FR-00988	a se îmbrăca	Je m'habille avant le petit-déjeuner.	Mă îmbrac înainte de micul dejun.	Les enfants s'habillent seuls.	Copiii se îmbracă singuri.	
+FR-01060	a întoarce capul	Elle tourne la tête vers la porte.	Ea întoarce capul spre ușă.	Tourne la tête à gauche.	Întoarce capul la stânga.	
+FR-01061	a vira la dreapta	Tournez à droite au carrefour.	Virați la dreapta la intersecție.	La voiture tourne à droite.	Mașina virează la dreapta.	
+FR-01062	a vira la stânga	Tournez à gauche après le pont.	Virați la stânga după pod.	Le bus tourne à gauche ici.	Autobuzul virează la stânga aici.	
+FR-01063	în fiecare zi	Je lis en français tous les jours.	Citesc în franceză în fiecare zi.	Elle marche tous les jours.	Ea merge pe jos în fiecare zi.	
+FR-01064	a tuși	Il tousse depuis hier.	El tușește de ieri.	Je tousse beaucoup ce matin.	Tușesc mult în această dimineață.	
+FR-01065	imediat	Je viens tout de suite.	Vin imediat.	Réponds-moi tout de suite !	Răspunde-mi imediat!	
+FR-01068	a traversa strada	Nous traversons la rue au feu vert.	Traversăm strada la culoarea verde.	Regarde avant de traverser la rue.	Uită-te înainte să traversezi strada.	
+FR-01271	poți să-mi spui «tu»	Tu peux me tutoyer, je m'appelle Marc.	Poți să-mi spui „tu”, mă numesc Marc.	Tu peux me tutoyer si tu veux.	Poți să-mi spui „tu” dacă vrei.	Invitație la adresare informală.
+FR-00487	un abonament	J'ai un abonnement de métro.	Am un abonament de metrou.	Cet abonnement coûte vingt euros par mois.	Acest abonament costă douăzeci de euro pe lună.	
+FR-00495	un bilet doar dus	Je voudrais un aller simple pour Lyon.	Aș dori un bilet doar dus spre Lyon.	Un aller simple coûte dix euros.	Un bilet doar dus costă zece euro.	
+FR-00498	un bilet dus-întors	J'achète un aller-retour pour Paris.	Cumpăr un bilet dus-întors spre Paris.	Cet aller-retour est valable aujourd'hui.	Acest bilet dus-întors este valabil astăzi.	
+FR-00504	un aperitiv	Nous prenons un apéritif avant le dîner.	Bem un aperitiv înainte de cină.	Il offre un apéritif à ses invités.	El oferă un aperitiv invitaților săi.	Aici este băutura servită înainte de masă.
+FR-01178	o stație de autobuz	J'attends à l'arrêt de bus.	Aștept în stația de autobuz.	L'arrêt de bus est près de l'école.	Stația de autobuz este lângă școală.	
+FR-00520	un autobuz	L'autobus arrive à huit heures.	Autobuzul sosește la ora opt.	Nous prenons un autobus pour aller au centre.	Luăm un autobuz ca să mergem în centru.	
+FR-00559	un bol	Je mange des céréales dans un bol.	Mănânc cereale dintr-un bol.	Ce bol est plein de soupe.	Acest bol este plin cu supă.	
+FR-00574	un autobuz	Le bus est en retard.	Autobuzul întârzie.	Je prends le bus chaque matin.	Iau autobuzul în fiecare dimineață.	Termen uzual sinonim cu «autobus».
+FR-00575	un bebeluș	Le bébé dort dans son lit.	Bebelușul doarme în patul lui.	Elle porte son bébé dans les bras.	Ea își ține bebelușul în brațe.	
+FR-00588	un caiet	J'écris dans mon cahier.	Scriu în caietul meu.	Ce cahier est pour le cours de français.	Acest caiet este pentru cursul de franceză.	
+FR-00593	o intersecție	Tournez à gauche au carrefour.	Virați la stânga la intersecție.	Ce carrefour est très fréquenté.	Această intersecție este foarte aglomerată.	
+FR-00594	un ghiozdan	L'enfant porte son cartable à l'école.	Copilul își duce ghiozdanul la școală.	Il met ses livres dans son cartable.	El își pune cărțile în ghiozdan.	
+FR-00616	un capitol	Je lis le premier chapitre du livre.	Citesc primul capitol al cărții.	Ce chapitre est facile.	Acest capitol este ușor.	
+FR-00626	o lămâie	Je mets du citron dans mon thé.	Pun lămâie în ceai.	Ce citron est jaune.	Această lămâie este galbenă.	
+FR-00638	un castravete	Je coupe un concombre pour la salade.	Tai un castravete pentru salată.	Ce concombre est frais.	Acest castravete este proaspăt.	
+FR-00640	un soț; un partener de viață	Son conjoint travaille à Paris.	Soțul ei lucrează la Paris.	Elle vient avec son conjoint.	Ea vine cu partenerul ei de viață.	Termen administrativ pentru soț sau partener.
+FR-00646	un e-mail	Je t'envoie un courriel ce soir.	Îți trimit un e-mail în seara aceasta.	J'ai reçu un courriel de mon professeur.	Am primit un e-mail de la profesorul meu.	Sinonim recomandat pentru «e-mail» în franceză.
+FR-00647	un văr	Mon cousin habite à Lyon.	Vărul meu locuiește la Lyon.	Je joue avec mon cousin.	Mă joc cu vărul meu.	
+FR-00649	un creion	J'écris avec un crayon.	Scriu cu un creion.	Ce crayon est rouge.	Acest creion este roșu.	
+FR-00673	un dicționar	Je cherche ce mot dans le dictionnaire.	Caut acest cuvânt în dicționar.	Ce dictionnaire est utile.	Acest dicționar este util.	
+FR-00687	un e-mail	Je t'envoie un e-mail demain.	Îți trimit un e-mail mâine.	Cet e-mail contient mon adresse.	Acest e-mail conține adresa mea.	Sinonim împrumutat pentru «courriel».
+FR-00709	un profesor	Cet enseignant explique bien la leçon.	Acest profesor explică bine lecția.	Un enseignant parle aux élèves.	Un profesor le vorbește elevilor.	
+FR-00721	un examen	J'ai un examen de français demain.	Mâine am un examen la franceză.	Cet examen est difficile.	Acest examen este dificil.	
+FR-00723	un exercițiu	Je fais un exercice de grammaire.	Fac un exercițiu de gramatică.	Cet exercice est facile.	Acest exercițiu este ușor.	
+FR-00741	un semafor roșu	La voiture s'arrête au feu rouge.	Mașina se oprește la semaforul roșu.	Attends au feu rouge avant de traverser.	Așteaptă la semaforul roșu înainte să traversezi.	
+FR-00754	un garaj	La voiture est dans le garage.	Mașina este în garaj.	Ce garage est petit.	Acest garaj este mic.	
+FR-00797	un asistent medical	L'infirmier aide le médecin.	Asistentul medical îl ajută pe medic.	Un infirmier travaille à l'hôpital.	Un asistent medical lucrează la spital.	Forma feminină este «infirmière».
+FR-00802	un ingredient	Il manque un ingrédient pour ce gâteau.	Lipsește un ingredient pentru această prăjitură.	Ce plat contient trois ingrédients.	Acest fel de mâncare conține trei ingrediente.	
+FR-00814	un parc public	Les enfants jouent dans un jardin public.	Copiii se joacă într-un parc public.	Ce jardin public est près de l'école.	Acest parc public este lângă școală.	
+FR-00841	un lavoar	Je me lave les mains au lavabo.	Mă spăl pe mâini la lavoar.	Le lavabo est dans la salle de bains.	Lavoarul este în baie.	
+FR-00842	o mașină de spălat	Le lave-linge est dans la salle de bains.	Mașina de spălat este în baie.	Je mets les vêtements dans le lave-linge.	Pun hainele în mașina de spălat.	
+FR-00859	un manual	Je lis mon manuel de français.	Îmi citesc manualul de franceză.	Ce manuel a dix chapitres.	Acest manual are zece capitole.	Sensul de carte didactică.
+FR-00864	un cuptor cu microunde	Je réchauffe la soupe au micro-ondes.	Încălzesc supa la cuptorul cu microunde.	Le micro-ondes est dans la cuisine.	Cuptorul cu microunde este în bucătărie.	

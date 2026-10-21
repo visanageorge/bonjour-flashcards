@@ -1,0 +1,158 @@
+{
+  "approval": "Păstrează 2.728: accept verificarea suplimentară și corecția cotte → cocotte (recomandat)",
+  "approved_on": "2026-10-13",
+  "scope": "17 surse suplimentare acceptate explicit; corecția cocotte are separat atestare Vocabulaire PDF 76.",
+  "entries": [
+    {
+      "catalog_id": "FINAL-ADD-0054",
+      "front": "un fruit sec",
+      "sense": "un fruct uscat sau oleaginos",
+      "urls": [
+        "https://www.larousse.fr/dictionnaires/college/fruit/17421"
+      ],
+      "verification_notes": "Sens alimentar larg confirmat de Larousse; atestarea în cărți nu a fost confirmată."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0158",
+      "front": "allergique",
+      "sense": "alergic / alergică",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9A1229"
+      ],
+      "verification_notes": "Adjectiv cu aceeași formă pentru ambele genuri."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0220",
+      "front": "se coucher tard",
+      "sense": "a se culca târziu",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9C4495"
+      ],
+      "verification_notes": "Expresie compozițională corectă; lipsește atestarea integrală în cărți."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0223",
+      "front": "à la prochaine",
+      "sense": "Pe data viitoare!",
+      "urls": [
+        "https://www.larousse.fr/dictionnaires/francais/prochain/64068"
+      ],
+      "verification_notes": "Formulă familiară de rămas-bun confirmată de Larousse."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0304",
+      "front": "un rapport",
+      "sense": "un raport",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9R0497"
+      ],
+      "verification_notes": "Substantiv masculin; sensul ales este raport/document."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0317",
+      "front": "une technique",
+      "sense": "o tehnică",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9T0481"
+      ],
+      "verification_notes": "Substantiv feminin; sursa din carte atestă adjectivul, sensul substantival cere sursă suplimentară."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0333",
+      "front": "être satisfait de",
+      "sense": "a fi mulțumit de",
+      "urls": [
+        "https://www.larousse.fr/dictionnaires/francais/satisfaire/71087"
+      ],
+      "verification_notes": "Construcție cu de + substantiv/infinitiv."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0338",
+      "front": "louer une chambre",
+      "sense": "a închiria o cameră",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9L1254?history=0"
+      ],
+      "verification_notes": "Sensul ales este a lua cu chirie."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0343",
+      "front": "rouler à vélo",
+      "sense": "a merge cu bicicleta",
+      "urls": [],
+      "verification_notes": "Expresie de deplasare, verificată lingvistic; atestarea integrală în cărți lipsește."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0344",
+      "front": "se servir de",
+      "sense": "a folosi",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A8S0856"
+      ],
+      "verification_notes": "Construcție pronominală cu de, distinctă de servir = a servi."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0346",
+      "front": "travailler en équipe",
+      "sense": "a lucra în echipă",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9E2415"
+      ],
+      "verification_notes": "Expresia este confirmată în dicționarul Academiei la équipe."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0429",
+      "front": "une génération",
+      "sense": "o generație",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9G0487"
+      ],
+      "verification_notes": "Substantiv feminin; potrivirile din cărți sunt în textul englez, nu atestări franceze."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0433",
+      "front": "un historique",
+      "sense": "un istoric; o prezentare cronologică",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9H0770"
+      ],
+      "verification_notes": "Sens substantival masculin, valid, distinct de adjectivul historique din carte."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0441",
+      "front": "une réparation",
+      "sense": "o reparație",
+      "urls": [
+        "https://dictionnaire-academie.fr/article/A9R1819"
+      ],
+      "verification_notes": "Substantiv feminin; potrivirea préparation din OCR a fost exclusă."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0469",
+      "front": "prendre des notes",
+      "sense": "a lua notițe",
+      "urls": [
+        "https://dictionnaire-academie.fr/article/A9N0694"
+      ],
+      "verification_notes": "Sensul notițe, diferit de notes = note școlare în carte."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0352",
+      "front": "une conséquence",
+      "sense": "o consecință",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9C3684"
+      ],
+      "verification_notes": "Substantiv feminin; apariția engleză consequence nu validează pagina franceză."
+    },
+    {
+      "catalog_id": "FINAL-ADD-0358",
+      "front": "une amélioration",
+      "sense": "o îmbunătățire",
+      "urls": [
+        "https://www.dictionnaire-academie.fr/article/A9A1430"
+      ],
+      "verification_notes": "Substantiv feminin, verificat în dicționarul Academiei; atestarea în cărți nu a fost confirmată."
+    }
+  ]
+}

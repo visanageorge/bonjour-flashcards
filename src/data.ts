@@ -5,6 +5,7 @@ export type Deck = {
   name: string;
   description: string;
   created: string;
+  enabled?: boolean;
 };
 export type Flashcard = {
   id: string;
@@ -37,7 +38,29 @@ export type Data = {
   reviews: Review[];
   templates: CardTemplate[];
   settings: { newPerDay: number; retention: number };
+  deleted?: DeletionLog;
 };
+export const COLLECTIONS = ["decks", "cards", "reviews", "templates"] as const;
+export type DeletionLog = Record<(typeof COLLECTIONS)[number], string[]>;
+export function mergeDeleted(...logs: (DeletionLog | undefined)[]): DeletionLog {
+  return Object.fromEntries(COLLECTIONS.map(table => [table, [...new Set(logs.flatMap(log => log?.[table] ?? []))]])) as DeletionLog;
+}
+/** Only removals made while editing a known local library are deletions. */
+export function trackDeletions(before: Data, next: Data): Data {
+  const deleted = mergeDeleted(before.deleted, next.deleted);
+  for (const table of COLLECTIONS) {
+    const remaining = new Set(next[table].map(row => row.id));
+    deleted[table] = [...new Set([...deleted[table], ...before[table].filter(row => !remaining.has(row.id)).map(row => row.id)])]
+      .filter(id => !remaining.has(id));
+  }
+  return COLLECTIONS.some(table => deleted[table].length) ? { ...next, deleted } : { ...next, deleted: undefined };
+}
+export const MASTER_DECK_ID = "__master__";
+export function cardsInDeck(data: Data, deckId: string) {
+  return deckId === MASTER_DECK_ID
+    ? data.cards
+    : data.cards.filter((card) => card.deckId === deckId);
+}
 export const emptyData = (): Data => ({
   version: 1,
   decks: [],
@@ -90,18 +113,29 @@ export function backupReminderVisible(
   if (!Number.isFinite(last) || +now - last < BACKUP_INTERVAL_MS) return false;
   return dismissedAt !== lastBackupAt;
 }
-export function queue(data: Data, deckId: string, now = new Date()) {
-  const introduced = data.reviews.filter(
-    (r) =>
-      r.deckId === deckId && r.wasNew && dayKey(new Date(r.at)) === dayKey(now),
-  ).length;
-  const cards = data.cards.filter((c) => c.deckId === deckId);
+export function queue(
+  data: Data,
+  deckId: string,
+  now = new Date(),
+  random: () => number = Math.random,
+) {
+  const introduced = new Set(
+    data.reviews
+      .filter((r) => r.wasNew && dayKey(new Date(r.at)) === dayKey(now))
+      .map((r) => r.cardId),
+  ).size;
+  const activeDecks = new Set(data.decks.filter((deck) => deck.enabled !== false).map((deck) => deck.id));
+  const cards = cardsInDeck(data, deckId).filter((card) => activeDecks.has(card.deckId));
   const due = cards
     .filter((c) => c.schedule.state !== State.New && c.schedule.due <= now)
     .sort((a, b) => +a.schedule.due - +b.schedule.due);
-  const fresh = cards
-    .filter((c) => c.schedule.state === State.New)
-    .slice(0, Math.max(0, data.settings.newPerDay - introduced));
+  const newCards = cards.filter((c) => c.schedule.state === State.New);
+  const fresh = (deckId === MASTER_DECK_ID
+    ? data.decks.flatMap((deck) =>
+        shuffleCards(newCards.filter((card) => card.deckId === deck.id), random),
+      )
+    : shuffleCards(newCards, random)
+  ).slice(0, Math.max(0, Math.min(15, data.settings.newPerDay) - introduced));
   return [...due, ...fresh];
 }
 
@@ -110,7 +144,23 @@ export function shuffledDeckCards(
   deckId: string,
   random: () => number = Math.random,
 ) {
-  const cards = data.cards.filter((card) => card.deckId === deckId);
+  const cards = cardsInDeck(data, deckId);
+  return shuffleCards(cards, random);
+}
+
+export function reviewedDeckCards(data: Data, deckId: string) {
+  return cardsInDeck(data, deckId).filter((card) => card.schedule.reps > 0);
+}
+
+export function shuffledReviewedDeckCards(
+  data: Data,
+  deckId: string,
+  random: () => number = Math.random,
+) {
+  return shuffleCards(reviewedDeckCards(data, deckId), random);
+}
+
+function shuffleCards(cards: Flashcard[], random: () => number) {
   const shuffled = [...cards];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
@@ -205,6 +255,9 @@ export function parseData(raw: unknown): Data {
   )
     throw Error("Fișierul nu este un backup Bonjour valid.");
   const templates = Array.isArray(d.templates) ? d.templates : [];
+  if (d.deleted && COLLECTIONS.some(table =>
+    !Array.isArray(d.deleted?.[table]) || d.deleted[table].some(id => typeof id !== "string" || !id.trim() || (table === "templates" ? templates : d[table]).some(row => row.id === id))
+  )) throw Error("Lista de ștergeri din backup este invalidă.");
   const validText = (v: unknown) =>
     typeof v === "string" && v.trim().length > 0;
   const validDate = (v: unknown) =>
@@ -233,6 +286,7 @@ export function parseData(raw: unknown): Data {
         !validText(x.id) ||
         !validText(x.name) ||
         typeof x.description !== "string" ||
+        (x.enabled !== undefined && typeof x.enabled !== "boolean") ||
         !validDate(x.created),
     )
   )
@@ -310,22 +364,50 @@ function database(): Promise<IDBDatabase> {
   });
 }
 export async function readData(): Promise<Data> {
+  const raw = await readLocalDataRaw();
+  return raw == null ? emptyData() : parseData(typeof raw === "string" ? JSON.parse(raw) : raw);
+}
+
+/** Read without parsing so a damaged library can still be backed up. */
+export async function readLocalDataRaw(): Promise<unknown> {
   const db = await database();
   try {
     return await new Promise((resolve, reject) => {
       const req = db.transaction("app").objectStore("app").get("data");
-      req.onsuccess = () => {
-        try {
-          resolve(req.result ? parseData(JSON.parse(req.result)) : emptyData());
-        } catch (e) {
-          reject(e);
-        }
-      };
+      req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
   } finally {
     db.close();
   }
+}
+
+/** Archive the original and replace it atomically; never writes to cloud. */
+export async function restoreLocalData(
+  data: Data,
+  context: { userId: string; reason: string; hadUnsyncedChanges: boolean },
+) {
+  const validated = parseData(data);
+  const db = await database();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("app", "readwrite");
+      const store = tx.objectStore("app");
+      const original = store.get("data");
+      original.onsuccess = () => {
+        if (original.result != null) {
+          store.add({ raw: original.result, ...context, archivedAt: new Date().toISOString() }, `recovery:${uid()}`);
+        }
+        store.put(JSON.stringify(validated), "data");
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? Error("Recuperarea locală a fost anulată; datele anterioare au fost păstrate."));
+    });
+  } finally {
+    db.close();
+  }
+  return validated;
 }
 export async function writeData(data: Data) {
   const db = await database();

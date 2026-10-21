@@ -29,18 +29,25 @@ import {
 } from "lucide-react";
 import {
   emptyData,
+  cardsInDeck,
+  MASTER_DECK_ID,
   grade,
   interval,
   newCard,
   normalizeCardText,
   outcomes,
   parseData,
+  trackDeletions,
+  mergeDeleted,
   queue,
   masteryLevel,
-  shuffledDeckCards,
+  reviewedDeckCards,
+  shuffledReviewedDeckCards,
   quizPrompt,
   quizAnswerCorrect,
   readData,
+  readLocalDataRaw,
+  restoreLocalData,
   writeData,
   uid,
   dayKey,
@@ -52,8 +59,9 @@ import {
   type Deck,
   type Flashcard,
 } from "./data";
-import { dataIsEmpty, loadCloudData, mergeData, saveCloudData } from "./cloud";
+import { dataIsEmpty, isAuditedCatalog, loadCloudData, mergeData, saveCloudData } from "./cloud";
 import { generateCard } from "./ai";
+import DeckSwitch from "./DeckSwitch";
 import { supabase, supabaseConfigured } from "./supabase";
 import {
   SUPABASE_DATABASE_LIMIT_BYTES,
@@ -119,6 +127,8 @@ export default function App() {
   const [data, setData] = useState<Data>(emptyData),
     [ready, setReady] = useState(false),
     [fatal, setFatal] = useState(""),
+    [recoveryBusy, setRecoveryBusy] = useState(false),
+    [recoveryError, setRecoveryError] = useState(""),
     [notice, setNotice] = useState(""),
     [saving, setSaving] = useState(false);
   const [deckId, setDeckId] = useState<string | null>(null),
@@ -145,6 +155,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [authBusy, setAuthBusy] = useState(false);
+  const [pendingOtpEmail, setPendingOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -171,11 +183,10 @@ export default function App() {
         setData(d);
         setReady(true);
       })
-      .catch(() =>
-        setFatal(
-          "Datele locale nu au putut fi citite. Reîncarcă pagina sau verifică dacă browserul permite stocarea locală. Datele existente nu au fost suprascrise.",
-        ),
-      );
+      .catch((error: unknown) => {
+        setFatal(error instanceof Error ? error.message : "Stocarea locală nu a putut fi citită.");
+        setReady(true);
+      });
   }, []);
   useEffect(() => {
     dataRef.current = data;
@@ -213,12 +224,12 @@ export default function App() {
   }, []);
   useEffect(() => {
     const userId = session?.user.id;
-    if (!ready || !userId || initialSyncUser.current === userId) return;
+    if (!ready || fatal || !userId || initialSyncUser.current === userId) return;
     initialSyncUser.current = userId;
     void firstCloudSync(userId);
-  }, [ready, session?.user.id]);
+  }, [ready, fatal, session?.user.id]);
   useEffect(() => {
-    if (!session) return;
+    if (!ready || !session || fatal) return;
     const retry = () => {
       if (localFlag(CLOUD_DIRTY_KEY) === "true") {
         enqueueCloudSave(dataRef.current, true);
@@ -226,7 +237,7 @@ export default function App() {
     };
     window.addEventListener("online", retry);
     return () => window.removeEventListener("online", retry);
-  }, [session?.user.id]);
+  }, [ready, session?.user.id, fatal]);
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15000);
     return () => clearInterval(t);
@@ -272,6 +283,70 @@ export default function App() {
     cloudQueue.current = run.catch(() => undefined);
     return run;
   }
+  async function retryLocalLibrary() {
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    try {
+      const restored = await readData();
+      dataRef.current = restored;
+      setData(restored);
+      initialSyncUser.current = null;
+      setFatal("");
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : "Copia locală nu poate fi citită încă.");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }
+  async function recoverLibraryFromCloud() {
+    const client = supabase;
+    const currentSession = sessionRef.current;
+    if (!client || !currentSession || recoveryBusy) return;
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    try {
+      await queueCloudTask(async () => {
+        const remote = await loadCloudData(client, currentSession.user.id);
+        if (!remote || dataIsEmpty(remote)) throw Error("Nu există o bibliotecă de recuperat în acest cont. Copia locală a fost păstrată.");
+        if (sessionRef.current?.user.id !== currentSession.user.id) throw Error("Contul s-a schimbat. Încearcă din nou în contul corect.");
+        const restored = await restoreLocalData(remote, {
+          userId: currentSession.user.id,
+          reason: fatal,
+          hadUnsyncedChanges: localFlag(CLOUD_DIRTY_KEY) === "true",
+        });
+        dataRef.current = restored;
+        setData(restored);
+        initialSyncUser.current = currentSession.user.id;
+        setLocalFlag(CLOUD_USER_KEY, currentSession.user.id);
+        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+        setCloudState("synced");
+        setFatal("");
+        setNotice("Biblioteca a fost recuperată din cloud. Copia locală anterioară este păstrată separat.");
+      });
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : "Recuperarea nu a reușit. Copia locală a fost păstrată.");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }
+  async function exportLocalRecoveryCopy() {
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    try {
+      const raw = await readLocalDataRaw();
+      if (raw == null) throw Error("Nu există o copie locală de descărcat.");
+      const url = URL.createObjectURL(new Blob([typeof raw === "string" ? raw : JSON.stringify(raw)], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `bonjour-copie-locala-${dayKey(new Date())}.json`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : "Copia locală nu poate fi descărcată.");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }
   async function firstCloudSync(userId: string) {
     const client = supabase;
     if (!client) return;
@@ -282,19 +357,30 @@ export default function App() {
         const remote = await loadCloudData(client, userId);
         const knownUser = localFlag(CLOUD_USER_KEY);
         const hasUnsyncedChanges = localFlag(CLOUD_DIRTY_KEY) === "true";
+        const remoteReplacesLocal = !!remote && isAuditedCatalog(remote) && !isAuditedCatalog(local);
 
-        if (!remote || hasUnsyncedChanges) {
-          await saveCloudData(client, userId, local);
-        } else {
-          const next = dataIsEmpty(local)
-            ? remote
-            : knownUser === userId
-              ? remote
-              : mergeData(remote, local);
+        if (!remote) {
+          if (!dataIsEmpty(local)) {
+            const next = await saveCloudData(client, userId, local);
+            await writeData(next);
+            dataRef.current = next;
+            setData(next);
+          }
+        } else if (hasUnsyncedChanges && !dataIsEmpty(local) && !remoteReplacesLocal) {
+          const next = await saveCloudData(client, userId, local);
           await writeData(next);
           dataRef.current = next;
           setData(next);
-          if (knownUser !== userId) await saveCloudData(client, userId, next);
+        } else {
+          const next = remoteReplacesLocal || dataIsEmpty(local)
+            ? remote
+            : knownUser === userId
+              ? remote
+              : mergeData(local, remote);
+          await writeData(next);
+          dataRef.current = next;
+          setData(next);
+          if (knownUser !== userId && !remoteReplacesLocal) await saveCloudData(client, userId, next);
         }
 
         setLocalFlag(CLOUD_USER_KEY, userId);
@@ -318,8 +404,12 @@ export default function App() {
     setLocalFlag(CLOUD_DIRTY_KEY, "true");
     setCloudState(navigator.onLine ? "syncing" : "offline");
     void queueCloudTask(async () => {
-      await saveCloudData(client, currentSession.user.id, next);
-      if (revision === cloudRevision.current) {
+      const synced = await saveCloudData(client, currentSession.user.id, next);
+      if (revision === cloudRevision.current && !busy.current) {
+        await writeData(synced);
+        if (revision !== cloudRevision.current || busy.current) return;
+        dataRef.current = synced;
+        setData(synced);
         setLocalFlag(CLOUD_USER_KEY, currentSession.user.id);
         setLocalFlag(CLOUD_DIRTY_KEY, "false");
         setCloudState("synced");
@@ -333,7 +423,7 @@ export default function App() {
         );
     });
   }
-  async function sendMagicLink(email: string) {
+  async function sendLoginCode(email: string) {
     if (!supabase) return;
     if (!email) {
       setNotice("Emailul acestui cont nu este configurat încă.");
@@ -343,19 +433,51 @@ export default function App() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: window.location.origin,
-          shouldCreateUser: false,
-        },
+        options: { shouldCreateUser: false },
       });
       if (error) throw error;
-      setNotice(
-        "Dacă adresa este autorizată, vei primi un magic link. Deschide-l pe acest dispozitiv.",
-      );
+      setPendingOtpEmail(email);
+      setOtpCode("");
+      setNotice("Codul de conectare a fost trimis pe email.");
+    } catch (error) {
+      const authError = error as { status?: number };
+      if (authError.status === 429) {
+        setPendingOtpEmail(email);
+        setOtpCode("");
+        setNotice(
+          "Ai cerut coduri prea des. Folosește ultimul cod primit sau așteaptă un minut înainte să ceri altul.",
+        );
+      } else {
+        setNotice(
+          "Codul nu a putut fi trimis. Verifică emailul și setările Supabase.",
+        );
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function verifyLoginCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !pendingOtpEmail) return;
+    const token = otpCode.replace(/\D/g, "");
+    if (token.length !== 6 && token.length !== 8) {
+      setNotice("Introdu codul numeric primit pe email.");
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: pendingOtpEmail,
+        token,
+        type: "email",
+      });
+      if (error) throw error;
+      setPendingOtpEmail("");
+      setOtpCode("");
+      setNotice("Te-ai conectat. Biblioteca se sincronizează.");
     } catch {
-      setNotice(
-        "Magic linkul nu a putut fi trimis. Verifică emailul și setările Supabase.",
-      );
+      setNotice("Codul este greșit sau a expirat. Cere un cod nou.");
     } finally {
       setAuthBusy(false);
     }
@@ -371,9 +493,55 @@ export default function App() {
     }
     setNotice("Te-ai deconectat. Datele locale rămân pe dispozitiv.");
   }
-  function syncNow() {
-    if (!session) return;
-    enqueueCloudSave(dataRef.current, true);
+  async function syncNow() {
+    const client = supabase;
+    const currentSession = sessionRef.current;
+    if (!client || !currentSession) return;
+
+    setCloudState(navigator.onLine ? "syncing" : "offline");
+    let cloudHadData = false;
+    try {
+      await queueCloudTask(async () => {
+        const userId = currentSession.user.id;
+        const local = dataRef.current;
+        const remote = await loadCloudData(client, userId);
+
+        if (remote) {
+          cloudHadData = true;
+          const dirty = localFlag(CLOUD_DIRTY_KEY) === "true";
+          let next = isAuditedCatalog(remote)
+            ? isAuditedCatalog(local) && dirty ? local : remote
+            : dataIsEmpty(local) ? remote : mergeData(local, remote);
+          if (next !== remote) next = await saveCloudData(client, userId, next);
+          await writeData(next);
+          dataRef.current = next;
+          setData(next);
+        } else if (!dataIsEmpty(local)) {
+          const next = await saveCloudData(client, userId, local);
+          await writeData(next);
+          dataRef.current = next;
+          setData(next);
+        }
+
+        setLocalFlag(CLOUD_USER_KEY, userId);
+        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+      });
+      setCloudState("synced");
+      setNotice(
+        cloudHadData
+          ? "Biblioteca a fost actualizată din Supabase."
+          : dataIsEmpty(dataRef.current)
+            ? "Nu există încă date în Supabase."
+            : "Biblioteca locală a fost salvată în Supabase.",
+      );
+    } catch {
+      setCloudState(navigator.onLine ? "error" : "offline");
+      setNotice(
+        navigator.onLine
+          ? "Actualizarea din Supabase nu a reușit. Datele locale nu au fost șterse."
+          : "Ești offline. Încearcă din nou când revine internetul.",
+      );
+    }
   }
   async function refreshUsage() {
     const fallback = localUsage(dataRef.current);
@@ -433,11 +601,14 @@ export default function App() {
       setAiBusy(false);
     }
   }
-  async function commit(next: Data) {
+  async function commit(next: Data, explicitRemoval = false) {
     if (busy.current) return false;
     busy.current = true;
     setSaving(true);
     try {
+      next = explicitRemoval
+        ? trackDeletions(data, next)
+        : { ...next, deleted: mergeDeleted(dataRef.current.deleted, next.deleted) };
       await writeData(next);
       dataRef.current = next;
       setData(next);
@@ -455,8 +626,16 @@ export default function App() {
       setSaving(false);
     }
   }
-  const deck = data.decks.find((d) => d.id === deckId),
-    cards = data.cards.filter((c) => c.deckId === deckId),
+  const deck = deckId === MASTER_DECK_ID && data.decks.length
+      ? {
+          id: MASTER_DECK_ID,
+          name: "MASTER",
+          description: "Toate cardurile din cele șase luni, cu un singur progres SRS.",
+          created: data.decks[0].created,
+          enabled: true,
+        }
+      : data.decks.find((d) => d.id === deckId),
+    cards = deckId ? cardsInDeck(data, deckId) : [],
     available = deckId ? queue(data, deckId, now) : [],
     current = study
       ? freePractice || testMode
@@ -470,10 +649,7 @@ export default function App() {
   const studiedToday = data.reviews.filter(
     (r) => dayKey(new Date(r.at)) === dayKey(now),
   );
-  const dueCount = data.decks.reduce(
-    (n, d) => n + queue(data, d.id, now).length,
-    0,
-  );
+  const dueCount = queue(data, MASTER_DECK_ID, now).length;
   const visible = cards.filter(
     (c) =>
       (filter === "all" ||
@@ -504,7 +680,7 @@ export default function App() {
         : cloudState === "offline"
           ? "Offline · salvat local"
           : cloudState === "error"
-            ? "Cloud indisponibil · salvat local"
+            ? "Sincronizare eșuată · salvat local"
             : cloudState === "signed-out"
               ? "Salvat local · cloud deconectat"
               : "Salvat pe acest dispozitiv";
@@ -513,6 +689,19 @@ export default function App() {
     setSearch("");
     setFilter("all");
     setStudy(false);
+  }
+  async function toggleDeck(id: string) {
+    const selected = dataRef.current.decks.find((d) => d.id === id);
+    if (!selected) return;
+    const enabled = selected.enabled === false;
+    if (await commit({
+      ...dataRef.current,
+      decks: dataRef.current.decks.map((d) => d.id === id ? { ...d, enabled } : d),
+    })) {
+      setStudy(false);
+      setStudyId(null);
+      setNotice(enabled ? `${selected.name}: studiu zilnic activat.` : `${selected.name}: studiu zilnic oprit. Progresul este păstrat.`);
+    }
   }
   function startStudy() {
     setNow(new Date());
@@ -531,7 +720,8 @@ export default function App() {
   }
   function startFreePractice() {
     if (!deckId) return;
-    const practiceCards = shuffledDeckCards(data, deckId);
+    const practiceCards = shuffledReviewedDeckCards(data, deckId);
+    if (!practiceCards.length) return;
     setNow(new Date());
     setStudyId(null);
     setFreePractice(true);
@@ -552,7 +742,8 @@ export default function App() {
   }
   function startTest() {
     if (!deckId) return;
-    const testCards = shuffledDeckCards(data, deckId);
+    const testCards = shuffledReviewedDeckCards(data, deckId);
+    if (!testCards.length) return;
     setNow(new Date());
     setStudyId(null);
     setFreePractice(false);
@@ -603,7 +794,7 @@ export default function App() {
       ),
       reviews: data.reviews.filter((r) => r.id !== last?.id),
     };
-    if (await commit(next)) {
+    if (await commit(next, true)) {
       setStudyId(prior?.id ?? null);
       setUndo(null);
       setDone((n) => Math.max(0, n - 1));
@@ -653,7 +844,7 @@ export default function App() {
         )
       )
         return;
-      if (await commit(next)) {
+      if (await commit(next, true)) {
         setDeckId(null);
         setStudy(false);
         setModal(null);
@@ -689,7 +880,7 @@ export default function App() {
         setModal(null);
         openDeck(d.id);
       }
-    } else if (modal?.kind === "card" && deckId) {
+    } else if (modal?.kind === "card" && deckId && (modal.card || deckId !== MASTER_DECK_ID)) {
       const front = normalizeCardText(String(f.get("front"))),
         back = normalizeCardText(String(f.get("back")));
       if (!front || !back) {
@@ -742,7 +933,7 @@ export default function App() {
         setNotice(modal.template ? "Template actualizat." : "Template creat.");
       }
     } else if (modal?.kind === "settings") {
-      const newPerDay = Number(f.get("newPerDay")),
+      const newPerDay = Math.min(15, Number(f.get("newPerDay"))),
         retention = Number(f.get("retention")) / 100;
       if (await commit({ ...data, settings: { newPerDay, retention } })) {
         setModal(null);
@@ -781,21 +972,32 @@ export default function App() {
         ),
         reviews: data.reviews.filter((r) => r.deckId !== modal.id),
       };
-    if (await commit(next)) {
+    if (await commit(next, true)) {
       if (modal.target === "deck") setDeckId(null);
       setModal(modal.target === "template" ? { kind: "templates" } : null);
       setNotice(modal.target === "reset" ? "Progres resetat." : "Șters.");
     }
   }
-  if (fatal)
+  if (fatal && authReady && (!supabaseConfigured || session))
     return (
       <main className="loading">
         <BookOpen size={40} />
         <h1>Nu putem deschide biblioteca</h1>
-        <p>{fatal}</p>
-        <button className="primary" onClick={() => location.reload()}>
-          Reîncearcă
+        <p>Copia locală nu a putut fi deschisă. Datele existente nu au fost șterse.</p>
+        <details><summary>Detalii eroare</summary><p>{fatal}</p></details>
+        {session && <>
+          <p>Recuperează biblioteca salvată în contul {session.user.email}. Copia locală actuală va fi păstrată separat; progresul nesincronizat nu va fi inclus în biblioteca recuperată.</p>
+          <button className="primary" disabled={recoveryBusy} onClick={() => void recoverLibraryFromCloud()}>
+            <Cloud size={17} /> {recoveryBusy ? "Se recuperează…" : "Recuperează din cloud"}
+          </button>
+        </>}
+        <button className="secondary" disabled={recoveryBusy} onClick={() => void retryLocalLibrary()}>
+          <RefreshCw size={17} /> Reîncearcă citirea locală
         </button>
+        <button className="secondary" disabled={recoveryBusy} onClick={() => void exportLocalRecoveryCopy()}>
+          <Download size={17} /> Descarcă copia locală
+        </button>
+        {recoveryError && <p role="alert">{recoveryError}</p>}
       </main>
     );
   if (!ready || !authReady)
@@ -819,37 +1021,94 @@ export default function App() {
             <Cloud size={24} />
           </div>
           <div className="eyebrow">BIBLIOTECĂ PRIVATĂ</div>
-          <h1 id="auth-title">Alege contul.</h1>
-          <p>
-            Selectează contul și vei primi un magic link pe email. Nu ai nevoie
-            de parolă.
-          </p>
-          <div className="account-buttons">
-            {allowedAccounts.map((account) => (
-              <button
-                type="button"
-                className="account-button"
-                key={account.label}
-                disabled={authBusy || !account.email}
-                onClick={() => void sendMagicLink(account.email)}
-              >
-                <span className="account-avatar">
-                  {account.label.replace("Cont ", "").charAt(0)}
-                </span>
-                <span>
-                  <strong>{account.label}</strong>
-                  <small>
-                    {account.email ? "Primește magic link" : "În curând"}
-                  </small>
-                </span>
-                <Mail size={18} />
-              </button>
-            ))}
-          </div>
-          <small>
-            Dacă adresa nu este pe lista autorizată, nu va fi creat un cont și
-            nu va primi acces.
-          </small>
+          <h1 id="auth-title">
+            {pendingOtpEmail ? "Introdu codul." : "Alege contul."}
+          </h1>
+          {fatal && <p>Conectează-te pentru a recupera biblioteca din cloud. Copia locală nu a fost ștersă.</p>}
+          {pendingOtpEmail ? (
+            <>
+              <p>
+                Am trimis un cod numeric pentru{" "}
+                {allowedAccounts.find(
+                  (account) => account.email === pendingOtpEmail,
+                )?.label ?? "contul ales"}
+                . Introdu-l aici pentru a conecta această aplicație.
+              </p>
+              <form className="otp-form" onSubmit={verifyLoginCode}>
+                <label className="field">
+                  Cod de conectare
+                  <input
+                    className="otp-code-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}|[0-9]{8}"
+                    maxLength={8}
+                    placeholder="00000000"
+                    value={otpCode}
+                    autoFocus
+                    onChange={(event) =>
+                      setOtpCode(
+                        event.target.value.replace(/\D/g, "").slice(0, 8),
+                      )
+                    }
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="primary full"
+                  disabled={authBusy || (otpCode.length !== 6 && otpCode.length !== 8)}
+                >
+                  <Check size={17} /> Conectează-te
+                </button>
+                <button
+                  type="button"
+                  className="secondary full"
+                  disabled={authBusy}
+                  onClick={() => {
+                    setPendingOtpEmail("");
+                    setOtpCode("");
+                    setNotice("");
+                  }}
+                >
+                  <ArrowLeft size={17} /> Alege alt cont
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p>
+                Selectează contul și vei primi un cod pe email. Nu ai nevoie de
+                parolă.
+              </p>
+              <div className="account-buttons">
+                {allowedAccounts.map((account) => (
+                  <button
+                    type="button"
+                    className="account-button"
+                    key={account.label}
+                    disabled={authBusy || !account.email}
+                    onClick={() => void sendLoginCode(account.email)}
+                  >
+                    <span className="account-avatar">
+                      {account.label.replace("Cont ", "").charAt(0)}
+                    </span>
+                    <span>
+                      <strong>{account.label}</strong>
+                      <small>
+                        {account.email ? "Primește codul" : "În curând"}
+                      </small>
+                    </span>
+                    <Mail size={18} />
+                  </button>
+                ))}
+              </div>
+              <small>
+                Dacă adresa nu este pe lista autorizată, nu va fi creat un cont
+                și nu va primi acces.
+              </small>
+            </>
+          )}
         </section>
         {notice && (
           <div className="toast" role="status">
@@ -903,6 +1162,15 @@ export default function App() {
           </button>
         </div>
         <div className="deck-nav">
+          {data.decks.length > 0 && (
+            <button
+              className={`nav ${deckId === MASTER_DECK_ID ? "selected" : ""}`}
+              onClick={() => openDeck(MASTER_DECK_ID)}
+            >
+              <span className="mini-dot" />
+              MASTER
+            </button>
+          )}
           {data.decks.map((d) => (
             <button
               key={d.id}
@@ -911,6 +1179,7 @@ export default function App() {
             >
               <span className="mini-dot" />
               {d.name}
+              {d.enabled === false && <span className="deck-off-label">OFF</span>}
             </button>
           ))}
         </div>
@@ -1014,7 +1283,7 @@ export default function App() {
                     {dueCount}
                     <span className="stat-dot" />
                   </strong>
-                  <small>carduri pregătite pentru tine</small>
+                  <small>Limita de carduri noi este comună tuturor deck-urilor ON.</small>
                 </div>
                 <div>
                   <span className="stat-label">Recapitulări astăzi</span>
@@ -1058,6 +1327,26 @@ export default function App() {
                 </section>
               ) : (
                 <div className="deck-grid">
+                  <button
+                    className="deck-tile"
+                    onClick={() => openDeck(MASTER_DECK_ID)}
+                  >
+                    <div className="tile-top">
+                      <span className="deck-symbol color-0"><Layers size={24} /></span>
+                      <span className={`pill ${dueCount ? "green" : ""}`}>
+                        {dueCount ? `${dueCount} de studiat` : "La zi"}
+                      </span>
+                    </div>
+                    <h3>MASTER</h3>
+                    <p>Studiu zilnic din deck-urile ON. Toate cardurile rămân în colecție.</p>
+                    <div className="tile-progress">
+                      <span style={{ width: `${data.cards.length ? data.cards.filter((c) => c.schedule.state !== State.New).length / data.cards.length * 100 : 0}%` }} />
+                    </div>
+                    <div className="tile-bottom">
+                      <span>{data.cards.length} carduri · {data.cards.filter((c) => c.schedule.state !== State.New).length} începute</span>
+                      <ArrowRight size={19} />
+                    </div>
+                  </button>
                   {data.decks.map((d, i) => {
                     const dc = data.cards.filter((c) => c.deckId === d.id),
                       learned = dc.filter(
@@ -1065,9 +1354,9 @@ export default function App() {
                       ).length,
                       count = queue(data, d.id, now).length;
                     return (
+                      <article className={`deck-tile-shell ${d.enabled === false ? "deck-paused" : ""}`} key={d.id}>
                       <button
                         className="deck-tile"
-                        key={d.id}
                         onClick={() => openDeck(d.id)}
                       >
                         <div className="tile-top">
@@ -1075,7 +1364,7 @@ export default function App() {
                             <Layers size={24} />
                           </span>
                           <span className={`pill ${count ? "green" : ""}`}>
-                            {count ? `${count} de studiat` : "La zi"}
+                            {d.enabled === false ? "Studiu oprit" : count ? `${count} de studiat` : "La zi"}
                           </span>
                         </div>
                         <h3>{d.name}</h3>
@@ -1098,6 +1387,11 @@ export default function App() {
                           <ArrowRight size={19} />
                         </div>
                       </button>
+                      <div className="deck-toggle-row">
+                        <span>Studiu zilnic</span>
+                        <DeckSwitch name={d.name} enabled={d.enabled !== false} disabled={saving} onToggle={() => void toggleDeck(d.id)} />
+                      </div>
+                      </article>
                     );
                   })}
                   <button
@@ -1388,13 +1682,15 @@ export default function App() {
                     {deck.description || "Câte un cuvânt, câte un pas înainte."}
                   </p>
                 </div>
+                {deckId !== MASTER_DECK_ID && <div className="deck-heading-actions">
+                <DeckSwitch name={deck.name} enabled={deck.enabled !== false} disabled={saving} onToggle={() => void toggleDeck(deck.id)} />
                 <button
                   className="icon bordered"
                   aria-label="Editează deck"
                   onClick={() => setModal({ kind: "deck", deck })}
                 >
                   <Edit3 size={19} />
-                </button>
+                </button></div>}
               </div>
               <section className="deck-overview">
                 <div
@@ -1413,7 +1709,9 @@ export default function App() {
                 <div className="overview-text">
                   <h2>Puțină practică. Mult progres.</h2>
                   <p>
-                    {available.length
+                    {deck.enabled === false
+                      ? "Studiul zilnic este oprit pentru acest deck. Activează ON pentru a relua; progresul este păstrat."
+                      : available.length
                       ? "Cardurile tale sunt pregătite pentru o nouă rundă."
                       : "Adaugă carduri noi sau revino la următoarea recapitulare."}
                   </p>
@@ -1447,14 +1745,20 @@ export default function App() {
                   </button>
                   <button
                     className="secondary practice-button"
-                    disabled={!cards.length}
+                    disabled={!deckId || !reviewedDeckCards(data, deckId).length}
                     onClick={startFreePractice}
                   >
                     Repetă liber
                   </button>
+                  {deckId && !reviewedDeckCards(data, deckId).length && (
+                    <p className="muted">
+                      Parcurge cel puțin un card în „Studiază azi” pentru
+                      repetarea liberă și testul RO → FR.
+                    </p>
+                  )}
                   <button
                     className="secondary test-button"
-                    disabled={!cards.length}
+                    disabled={!deckId || !reviewedDeckCards(data, deckId).length}
                     onClick={startTest}
                   >
                     Test RO → FR
@@ -1465,12 +1769,12 @@ export default function App() {
                 <h2>
                   Carduri <span>{cards.length}</span>
                 </h2>
-                <button
+                {deckId !== MASTER_DECK_ID && <button
                   className="primary"
                   onClick={() => setModal({ kind: "card" })}
                 >
                   <Plus size={18} /> Card nou
-                </button>
+                </button>}
               </div>
               <div className="list-controls">
                 <label className="search">
@@ -1515,7 +1819,7 @@ export default function App() {
                       ? "Încearcă alt cuvânt sau schimbă filtrul."
                       : "Adaugă primul card, cu un cuvânt în față și traducerea pe spate."}
                   </p>
-                  {!cards.length && (
+                  {!cards.length && deckId !== MASTER_DECK_ID && (
                     <button
                       className="text-button"
                       onClick={() => setModal({ kind: "card" })}
@@ -1945,7 +2249,7 @@ Keep the result concise.`
 
 Include:
 - the correct Romanian translation;
-- two short, natural example sentences in French;
+- two short, natural example sentences in French, each followed by its complete Romanian translation;
 - if the word is a verb, its complete conjugation in the present indicative: je, tu, il/elle/on, nous, vous, ils/elles;
 - if the verb is reflexive, use the correct reflexive pronouns;
 - if it is not a verb, do not include a conjugation.
@@ -2111,7 +2415,7 @@ Use correct French spelling, accents and grammar. Keep the result clear and conc
                         disabled={authBusy || cloudState === "syncing"}
                         onClick={syncNow}
                       >
-                        <RefreshCw size={16} /> Sincronizează acum
+                        <RefreshCw size={16} /> Actualizează din cloud
                       </button>
                       <button
                         type="button"
@@ -2130,7 +2434,7 @@ Use correct French spelling, accents and grammar. Keep the result clear and conc
                           className="secondary full"
                           key={account.label}
                           disabled={authBusy || !account.email}
-                          onClick={() => void sendMagicLink(account.email)}
+                          onClick={() => void sendLoginCode(account.email)}
                         >
                           <Mail size={17} /> {account.label}
                         </button>
@@ -2144,7 +2448,7 @@ Use correct French spelling, accents and grammar. Keep the result clear and conc
                     type="number"
                     name="newPerDay"
                     min={0}
-                    max={100}
+                    max={15}
                     required
                     defaultValue={data.settings.newPerDay}
                   />

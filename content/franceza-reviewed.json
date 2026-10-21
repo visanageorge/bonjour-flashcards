@@ -1,0 +1,66 @@
+{
+  "cards": [
+    {
+      "catalog_id": "FR-00018",
+      "back": "Traducere: o femeie\n\nExemple:\n• Cette femme parle français.\n  Această femeie vorbește franceza.\n• Une femme attend le bus.\n  O femeie așteaptă autobuzul."
+    },
+    {
+      "catalog_id": "FR-00076",
+      "back": "Traducere: pâinea\n\nExemple:\n• Je mange du pain au petit-déjeuner.\n  Mănânc pâine la micul dejun.\n• Le pain est sur la table.\n  Pâinea este pe masă."
+    },
+    {
+      "catalog_id": "FR-00074",
+      "back": "Traducere: o carte\n\nExemple:\n• Je lis un livre en français.\n  Citesc o carte în franceză.\n• Ce livre est intéressant.\n  Această carte este interesantă."
+    },
+    {
+      "catalog_id": "FR-00001",
+      "back": "Traducere: bună ziua\n\nExemple:\n• Bonjour, comment allez-vous ?\n  Bună ziua, ce mai faceți?\n• Je dis bonjour à mon voisin.\n  Îmi salut vecinul."
+    },
+    {
+      "catalog_id": "FR-00003",
+      "back": "Traducere: o zi\n\nExemple:\n• Un jour, je visiterai Paris.\n  Într-o zi voi vizita Parisul.\n• Il reste un jour avant le départ.\n  Mai rămâne o zi până la plecare."
+    },
+    {
+      "catalog_id": "FR-00013",
+      "back": "Traducere: în\n\nExemple:\n• Le livre est dans le sac.\n  Cartea este în geantă.\n• J'habite dans cette ville.\n  Locuiesc în acest oraș."
+    },
+    {
+      "catalog_id": "FR-00019",
+      "back": "Traducere: o oră\n\nExemple:\n• Le cours dure une heure.\n  Cursul durează o oră.\n• J'arrive dans une heure.\n  Ajung peste o oră."
+    },
+    {
+      "catalog_id": "FR-00020",
+      "back": "Traducere: un minut\n\nExemple:\n• Attends une minute, s'il te plaît.\n  Așteaptă un minut, te rog.\n• Il arrive dans une minute.\n  Sosește peste un minut."
+    },
+    {
+      "catalog_id": "FR-00026",
+      "back": "Traducere: partea stângă\n\nExemple:\n• La gauche de la page est vide.\n  Partea stângă a paginii este goală.\n• Regarde la gauche de la photo.\n  Uită-te la partea stângă a fotografiei.",
+      "review_notes": "Sens nominal; expresia direcțională «à gauche» are card separat."
+    },
+    {
+      "catalog_id": "FR-00031",
+      "back": "Traducere: bună seara\n\nExemple:\n• Bonsoir, madame !\n  Bună seara, doamnă!\n• Je dis bonsoir à mes amis.\n  Le spun bună seara prietenilor mei."
+    },
+    {
+      "catalog_id": "FR-00037",
+      "back": "Traducere: noaptea\n\nExemple:\n• La nuit est calme.\n  Noaptea este liniștită.\n• Je dors bien la nuit.\n  Dorm bine noaptea."
+    },
+    {
+      "catalog_id": "FR-00032",
+      "back": "Traducere: o cameră (de dormit)\n\nExemple:\n• Je range ma chambre.\n  Îmi fac ordine în cameră.\n• Une chambre est libre dans cet hôtel.\n  O cameră este liberă în acest hotel."
+    },
+    {
+      "catalog_id": "FR-00043",
+      "back": "Traducere: astăzi\n\nExemple:\n• Aujourd'hui, il fait beau.\n  Astăzi este vreme frumoasă.\n• Je travaille aujourd'hui.\n  Lucrez astăzi."
+    },
+    {
+      "catalog_id": "FR-00051",
+      "back": "Traducere: timpul (durata)\n\nExemple:\n• Je n'ai pas le temps.\n  Nu am timp.\n• Le temps passe vite.\n  Timpul trece repede.",
+      "review_notes": "Sensul de durată; sensul meteorologic este distinct."
+    },
+    {
+      "catalog_id": "FR-00048",
+      "back": "Traducere: un tată\n\nExemple:\n• Son père travaille ici.\n  Tatăl lui lucrează aici.\n• Un père parle avec son enfant.\n  Un tată vorbește cu copilul său."
+    }
+  ]
+}

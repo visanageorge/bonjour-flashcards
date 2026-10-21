@@ -1,0 +1,23 @@
+{
+  "verifiedAt": "2026-10-15T10:59:21.172Z",
+  "cards": 2728,
+  "monthlyCounts": [
+    445,
+    450,
+    449,
+    450,
+    450,
+    484
+  ],
+  "reviews": 25,
+  "existingCardsAndSchedulesPreserved": true,
+  "deckOnOffPreserved": true,
+  "apiOffsets": [
+    0,
+    1000,
+    2000
+  ],
+  "publishedAsset": "/assets/index-CxYM8tFD.js",
+  "readOnlyCheck": true,
+  "beforeBackup": "supabase/vlad-before-catalog-replacement-2026-10-15T10-48-32-597Z.json"
+}

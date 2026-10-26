@@ -363,17 +363,43 @@ function database(): Promise<IDBDatabase> {
     req.onerror = () => reject(req.error);
   });
 }
-export async function readData(): Promise<Data> {
-  const raw = await readLocalDataRaw();
+export async function readData(userId?: string): Promise<Data> {
+  const raw = await readLocalDataRaw(userId);
   return raw == null ? emptyData() : parseData(typeof raw === "string" ? JSON.parse(raw) : raw);
 }
 
+/** Migrate the old shared slot only for its recorded owner, keeping the original. */
+export async function readAccountData(userId: string, legacyOwner: string | null): Promise<Data> {
+  if (legacyOwner === userId) {
+    const db = await database();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("app", "readwrite");
+        const store = tx.objectStore("app");
+        const key = `data:${userId}`;
+        const existing = store.get(key);
+        existing.onsuccess = () => {
+          if (existing.result != null) return;
+          const legacy = store.get("data");
+          legacy.onsuccess = () => {
+            if (legacy.result != null) store.put(legacy.result, key);
+          };
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? Error("Migrarea copiei locale a fost anulată."));
+      });
+    } finally { db.close(); }
+  }
+  return readData(userId);
+}
+
 /** Read without parsing so a damaged library can still be backed up. */
-export async function readLocalDataRaw(): Promise<unknown> {
+export async function readLocalDataRaw(userId?: string): Promise<unknown> {
   const db = await database();
   try {
     return await new Promise((resolve, reject) => {
-      const req = db.transaction("app").objectStore("app").get("data");
+      const req = db.transaction("app").objectStore("app").get(userId ? `data:${userId}` : "data");
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
@@ -386,6 +412,7 @@ export async function readLocalDataRaw(): Promise<unknown> {
 export async function restoreLocalData(
   data: Data,
   context: { userId: string; reason: string; hadUnsyncedChanges: boolean },
+  storageUserId?: string,
 ) {
   const validated = parseData(data);
   const db = await database();
@@ -393,12 +420,13 @@ export async function restoreLocalData(
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("app", "readwrite");
       const store = tx.objectStore("app");
-      const original = store.get("data");
+      const key = storageUserId ? `data:${storageUserId}` : "data";
+      const original = store.get(key);
       original.onsuccess = () => {
         if (original.result != null) {
           store.add({ raw: original.result, ...context, archivedAt: new Date().toISOString() }, `recovery:${uid()}`);
         }
-        store.put(JSON.stringify(validated), "data");
+        store.put(JSON.stringify(validated), key);
       };
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -409,12 +437,12 @@ export async function restoreLocalData(
   }
   return validated;
 }
-export async function writeData(data: Data) {
+export async function writeData(data: Data, userId?: string) {
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("app", "readwrite");
-      tx.objectStore("app").put(JSON.stringify(data), "data");
+      tx.objectStore("app").put(JSON.stringify(data), userId ? `data:${userId}` : "data");
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);

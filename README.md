@@ -50,7 +50,7 @@ Proiectul conține deja clientul Supabase opțional și schema PostgreSQL în `s
 
 > Cheia secretă (`sb_secret_...` / `service_role`) nu trebuie pusă niciodată în browser sau în repository. Schema folosește RLS, iar datele sunt accesibile doar după autentificarea utilizatorului.
 
-Pe ecranul de autentificare, alege unul dintre conturile configurate prin `VITE_VLAD_EMAIL` și `VITE_ANDREEA_EMAIL`. După deschiderea magic linkului, sesiunea rămâne persistentă în browser. Prima conectare păstrează datele locale existente și le urcă în cloud; modificările ulterioare se salvează local înainte de sincronizare.
+Pe ecranul de autentificare, alege unul dintre conturile configurate prin `VITE_VLAD_EMAIL` și `VITE_ANDREEA_EMAIL` și introdu codul primit pe email. Sesiunea rămâne persistentă în browser. Fiecare cont are biblioteca, progresul, copia locală și modificările nesincronizate separate. Copia locală din versiunile vechi se migrează numai pentru proprietarul ei înregistrat și rămâne păstrată.
 
 ## Acces privat
 
@@ -60,4 +60,4 @@ Aplicația afișează biblioteca numai după autentificare și nu creează autom
 2. Adaugă sau invită cele două adrese de email.
 3. În Authentication → General Configuration, dezactivează „Allow new users to sign up”.
 
-După această configurare, adresele existente se pot conecta cu magic link, iar alte adrese nu pot crea utilizatori. Politicile RLS păstrează implicit bibliotecile celor două persoane separate.
+După această configurare, adresele existente se pot conecta cu un cod pe email, iar alte adrese nu pot crea utilizatori. Politicile RLS păstrează bibliotecile celor două persoane separate, inclusiv cardurile, istoricul și setările ON/OFF. Pentru două conturi cu același vocabular se creează identități noi pentru deck-uri și carduri; nu se copiază programările sau recenziile din contul sursă.

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { it, expect, vi } from "vitest";
-import { emptyData, readData, readLocalDataRaw, restoreLocalData, writeData, newCard, grade, Rating } from "./data";
+import { emptyData, readData, readAccountData, readLocalDataRaw, restoreLocalData, writeData, newCard, grade, Rating } from "./data";
 it("persists cards and FSRS history across independent database connections", async () => {
   const d = emptyData();
   d.decks = [
@@ -22,6 +22,32 @@ it("persists cards and FSRS history across independent database connections", as
 it("replaces the collection with an imported empty backup", async () => {
   await writeData(emptyData());
   expect(await readData()).toEqual(emptyData());
+});
+
+it("keeps two accounts and their study progress separate on the same device", async () => {
+  const vlad = cloudFixture();
+  const andreea = cloudFixture();
+  andreea.cards[0].front = "la maison";
+  andreea.cards[0].schedule.reps = 0;
+  andreea.reviews = [];
+  await writeData(vlad,"account-vlad");
+  await writeData(andreea,"account-andreea");
+  expect(JSON.stringify(await readData("account-vlad"))).toBe(JSON.stringify(vlad));
+  expect(JSON.stringify(await readData("account-andreea"))).toBe(JSON.stringify(andreea));
+  expect(await readData("another-account")).toEqual(emptyData());
+  await restoreLocalData(andreea,{...context,userId:"account-andreea"},"account-andreea");
+  expect(JSON.stringify(await readData("account-vlad"))).toBe(JSON.stringify(vlad));
+});
+
+it("migrates legacy progress only for its owner and never replaces a newer account cache", async () => {
+  const legacy = cloudFixture();
+  await writeData(legacy);
+  expect(await readAccountData("new-andreea","legacy-vlad")).toEqual(emptyData());
+  expect(JSON.stringify(await readAccountData("legacy-vlad","legacy-vlad"))).toBe(JSON.stringify(legacy));
+  const newer = grade(legacy,legacy.cards[0].id,Rating.Easy,new Date(+legacy.cards[0].schedule.due+1000));
+  await writeData(newer,"legacy-vlad");
+  expect(JSON.stringify(await readAccountData("legacy-vlad","legacy-vlad"))).toBe(JSON.stringify(newer));
+  expect(JSON.stringify(await readData())).toBe(JSON.stringify(legacy));
 });
 
 async function inspectStorage() {

@@ -36,3 +36,5 @@ tmp/catalog-rollback-rehearsal.sql
 tmp/catalog-guard-verification.sql
 tmp/deck-enabled-verification.sql
 tmp/restore-missing-cards.sql
+tmp/account-library-*
+supabase/account-library-*.json

@@ -46,6 +46,7 @@ import {
   quizPrompt,
   quizAnswerCorrect,
   readData,
+  readAccountData,
   readLocalDataRaw,
   restoreLocalData,
   writeData,
@@ -59,7 +60,7 @@ import {
   type Deck,
   type Flashcard,
 } from "./data";
-import { dataIsEmpty, isAuditedCatalog, loadCloudData, mergeData, saveCloudData } from "./cloud";
+import { dataIsEmpty, isAuditedCatalog, loadCloudData, saveCloudData } from "./cloud";
 import { generateCard } from "./ai";
 import DeckSwitch from "./DeckSwitch";
 import { supabase, supabaseConfigured } from "./supabase";
@@ -98,6 +99,8 @@ type CloudState =
   "local" | "signed-out" | "syncing" | "synced" | "offline" | "error";
 const CLOUD_USER_KEY = "bonjour-cloud-user";
 const CLOUD_DIRTY_KEY = "bonjour-cloud-dirty";
+const dirtyKey = (userId: string) => `${CLOUD_DIRTY_KEY}:${userId}`;
+const accountKey = (key: string, userId?: string) => userId ? `${key}:${userId}` : key;
 const allowedAccounts = [
   {
     label: "Cont Vlad",
@@ -174,20 +177,48 @@ export default function App() {
     dataRef = useRef<Data>(emptyData()),
     sessionRef = useRef<Session | null>(null),
     initialSyncUser = useRef<string | null>(null),
+    libraryUser = useRef<string | null | undefined>(undefined),
     cloudQueue = useRef<Promise<void>>(Promise.resolve()),
     cloudRevision = useRef(0);
   useEffect(() => {
-    readData()
+    if (!authReady) return;
+    const userId = session?.user.id ?? null;
+    let active = true;
+    libraryUser.current = undefined;
+    initialSyncUser.current = null;
+    cloudRevision.current++;
+    setReady(false);
+    setFatal("");
+    setStudy(false);
+    setDeckId(null);
+    setModal(null);
+    setUndo(null);
+    setBackupClock(null);
+    setBackupDismissed(null);
+    dataRef.current = emptyData();
+    setData(dataRef.current);
+    const legacyOwner = localFlag(CLOUD_USER_KEY);
+    if (userId && legacyOwner === userId && localFlag(dirtyKey(userId)) === null) {
+      setLocalFlag(dirtyKey(userId), localFlag(CLOUD_DIRTY_KEY) ?? "false");
+    }
+    const loading = userId ? readAccountData(userId, legacyOwner)
+      : supabaseConfigured ? Promise.resolve(emptyData()) : readData();
+    loading
       .then((d) => {
+        if (!active) return;
+        libraryUser.current = userId;
         dataRef.current = d;
         setData(d);
         setReady(true);
       })
       .catch((error: unknown) => {
+        if (!active) return;
+        libraryUser.current = userId;
         setFatal(error instanceof Error ? error.message : "Stocarea locală nu a putut fi citită.");
         setReady(true);
       });
-  }, []);
+    return () => { active = false; };
+  }, [authReady, session?.user.id]);
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -224,14 +255,14 @@ export default function App() {
   }, []);
   useEffect(() => {
     const userId = session?.user.id;
-    if (!ready || fatal || !userId || initialSyncUser.current === userId) return;
+    if (!ready || fatal || !userId || libraryUser.current !== userId || initialSyncUser.current === userId) return;
     initialSyncUser.current = userId;
     void firstCloudSync(userId);
   }, [ready, fatal, session?.user.id]);
   useEffect(() => {
-    if (!ready || !session || fatal) return;
+    if (!ready || !session || fatal || libraryUser.current !== session.user.id) return;
     const retry = () => {
-      if (localFlag(CLOUD_DIRTY_KEY) === "true") {
+      if (localFlag(dirtyKey(session.user.id)) === "true") {
         enqueueCloudSave(dataRef.current, true);
       }
     };
@@ -264,30 +295,35 @@ export default function App() {
   useEffect(() => {
     if (!ready || !data.cards.length) return;
     try {
-      const stored = localStorage.getItem("bonjour-backup-clock");
+      const stored = localStorage.getItem(accountKey("bonjour-backup-clock",session?.user.id));
       if (stored && Number.isFinite(Date.parse(stored))) {
         setBackupClock(stored);
       } else {
         const stamp = new Date().toISOString();
-        localStorage.setItem("bonjour-backup-clock", stamp);
+        localStorage.setItem(accountKey("bonjour-backup-clock",session?.user.id), stamp);
         setBackupClock(stamp);
       }
-      setBackupDismissed(localStorage.getItem("bonjour-backup-dismissed"));
+      setBackupDismissed(localStorage.getItem(accountKey("bonjour-backup-dismissed",session?.user.id)));
     } catch {
       setBackupClock(null);
       setBackupDismissed(null);
     }
-  }, [ready, data.cards.length]);
+  }, [ready, data.cards.length, session?.user.id]);
   function queueCloudTask(task: () => Promise<void>) {
     const run = cloudQueue.current.catch(() => undefined).then(task);
     cloudQueue.current = run.catch(() => undefined);
     return run;
   }
+  function currentLibrary(userId: string) {
+    return sessionRef.current?.user.id === userId && libraryUser.current === userId;
+  }
   async function retryLocalLibrary() {
+    const userId = sessionRef.current?.user.id;
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
-      const restored = await readData();
+      const restored = await readData(userId);
+      if (userId && !currentLibrary(userId)) return;
       dataRef.current = restored;
       setData(restored);
       initialSyncUser.current = null;
@@ -301,7 +337,7 @@ export default function App() {
   async function recoverLibraryFromCloud() {
     const client = supabase;
     const currentSession = sessionRef.current;
-    if (!client || !currentSession || recoveryBusy) return;
+    if (!client || !currentSession || recoveryBusy || !currentLibrary(currentSession.user.id)) return;
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
@@ -312,13 +348,13 @@ export default function App() {
         const restored = await restoreLocalData(remote, {
           userId: currentSession.user.id,
           reason: fatal,
-          hadUnsyncedChanges: localFlag(CLOUD_DIRTY_KEY) === "true",
-        });
+          hadUnsyncedChanges: localFlag(dirtyKey(currentSession.user.id)) === "true",
+        }, currentSession.user.id);
+        if (!currentLibrary(currentSession.user.id)) return;
         dataRef.current = restored;
         setData(restored);
         initialSyncUser.current = currentSession.user.id;
-        setLocalFlag(CLOUD_USER_KEY, currentSession.user.id);
-        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+        setLocalFlag(dirtyKey(currentSession.user.id), "false");
         setCloudState("synced");
         setFatal("");
         setNotice("Biblioteca a fost recuperată din cloud. Copia locală anterioară este păstrată separat.");
@@ -333,7 +369,7 @@ export default function App() {
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
-      const raw = await readLocalDataRaw();
+      const raw = await readLocalDataRaw(sessionRef.current?.user.id);
       if (raw == null) throw Error("Nu există o copie locală de descărcat.");
       const url = URL.createObjectURL(new Blob([typeof raw === "string" ? raw : JSON.stringify(raw)], { type: "application/json" }));
       const anchor = document.createElement("a");
@@ -349,45 +385,31 @@ export default function App() {
   }
   async function firstCloudSync(userId: string) {
     const client = supabase;
-    if (!client) return;
+    if (!client || !currentLibrary(userId)) return;
+    const revision = cloudRevision.current;
     setCloudState("syncing");
     try {
       await queueCloudTask(async () => {
-        const local = dataRef.current;
+        if (!currentLibrary(userId)) return;
         const remote = await loadCloudData(client, userId);
-        const knownUser = localFlag(CLOUD_USER_KEY);
-        const hasUnsyncedChanges = localFlag(CLOUD_DIRTY_KEY) === "true";
+        if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+        const local = dataRef.current;
+        const hasUnsyncedChanges = localFlag(dirtyKey(userId)) === "true";
         const remoteReplacesLocal = !!remote && isAuditedCatalog(remote) && !isAuditedCatalog(local);
 
-        if (!remote) {
-          if (!dataIsEmpty(local)) {
-            const next = await saveCloudData(client, userId, local);
-            await writeData(next);
-            dataRef.current = next;
-            setData(next);
-          }
-        } else if (hasUnsyncedChanges && !dataIsEmpty(local) && !remoteReplacesLocal) {
-          const next = await saveCloudData(client, userId, local);
-          await writeData(next);
-          dataRef.current = next;
-          setData(next);
-        } else {
-          const next = remoteReplacesLocal || dataIsEmpty(local)
-            ? remote
-            : knownUser === userId
-              ? remote
-              : mergeData(local, remote);
-          await writeData(next);
-          dataRef.current = next;
-          setData(next);
-          if (knownUser !== userId && !remoteReplacesLocal) await saveCloudData(client, userId, next);
-        }
-
-        setLocalFlag(CLOUD_USER_KEY, userId);
-        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+        const next = (!remote || hasUnsyncedChanges) && !dataIsEmpty(local) && !remoteReplacesLocal
+          ? await saveCloudData(client, userId, local)
+          : remote ?? local;
+        if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+        await writeData(next, userId);
+        if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+        dataRef.current = next;
+        setData(next);
+        setLocalFlag(dirtyKey(userId), "false");
       });
-      setCloudState("synced");
+      if (currentLibrary(userId) && revision === cloudRevision.current && !busy.current) setCloudState("synced");
     } catch {
+      if (!currentLibrary(userId)) return;
       setCloudState(navigator.onLine ? "error" : "offline");
       setNotice(
         navigator.onLine
@@ -399,23 +421,24 @@ export default function App() {
   function enqueueCloudSave(next: Data, showNotice = false) {
     const currentSession = sessionRef.current;
     const client = supabase;
-    if (!client || !currentSession) return;
+    if (!client || !currentSession || !currentLibrary(currentSession.user.id)) return;
     const revision = ++cloudRevision.current;
-    setLocalFlag(CLOUD_DIRTY_KEY, "true");
+    setLocalFlag(dirtyKey(currentSession.user.id), "true");
     setCloudState(navigator.onLine ? "syncing" : "offline");
     void queueCloudTask(async () => {
+      if (!currentLibrary(currentSession.user.id)) return;
       const synced = await saveCloudData(client, currentSession.user.id, next);
-      if (revision === cloudRevision.current && !busy.current) {
-        await writeData(synced);
-        if (revision !== cloudRevision.current || busy.current) return;
+      if (revision === cloudRevision.current && !busy.current && currentLibrary(currentSession.user.id)) {
+        await writeData(synced, currentSession.user.id);
+        if (revision !== cloudRevision.current || busy.current || !currentLibrary(currentSession.user.id)) return;
         dataRef.current = synced;
         setData(synced);
-        setLocalFlag(CLOUD_USER_KEY, currentSession.user.id);
-        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+        setLocalFlag(dirtyKey(currentSession.user.id), "false");
         setCloudState("synced");
         if (showNotice) setNotice("Biblioteca este sincronizată cu Supabase.");
       }
     }).catch(() => {
+      if (!currentLibrary(currentSession.user.id)) return;
       setCloudState(navigator.onLine ? "error" : "offline");
       if (showNotice)
         setNotice(
@@ -496,36 +519,42 @@ export default function App() {
   async function syncNow() {
     const client = supabase;
     const currentSession = sessionRef.current;
-    if (!client || !currentSession) return;
+    if (!client || !currentSession || !currentLibrary(currentSession.user.id)) return;
+    const revision = cloudRevision.current;
 
     setCloudState(navigator.onLine ? "syncing" : "offline");
     let cloudHadData = false;
     try {
       await queueCloudTask(async () => {
         const userId = currentSession.user.id;
-        const local = dataRef.current;
+        if (!currentLibrary(userId)) return;
         const remote = await loadCloudData(client, userId);
+        if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+        const local = dataRef.current;
 
         if (remote) {
           cloudHadData = true;
-          const dirty = localFlag(CLOUD_DIRTY_KEY) === "true";
-          let next = isAuditedCatalog(remote)
-            ? isAuditedCatalog(local) && dirty ? local : remote
-            : dataIsEmpty(local) ? remote : mergeData(local, remote);
+          const dirty = localFlag(dirtyKey(userId)) === "true";
+          const replaceLegacy = isAuditedCatalog(remote) && !isAuditedCatalog(local);
+          let next = dirty && !replaceLegacy ? local : remote;
           if (next !== remote) next = await saveCloudData(client, userId, next);
-          await writeData(next);
+          if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+          await writeData(next, userId);
+          if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
           dataRef.current = next;
           setData(next);
         } else if (!dataIsEmpty(local)) {
           const next = await saveCloudData(client, userId, local);
-          await writeData(next);
+          if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
+          await writeData(next, userId);
+          if (!currentLibrary(userId) || revision !== cloudRevision.current || busy.current) return;
           dataRef.current = next;
           setData(next);
         }
 
-        setLocalFlag(CLOUD_USER_KEY, userId);
-        setLocalFlag(CLOUD_DIRTY_KEY, "false");
+        setLocalFlag(dirtyKey(userId), "false");
       });
+      if (!currentLibrary(currentSession.user.id) || revision !== cloudRevision.current || busy.current) return;
       setCloudState("synced");
       setNotice(
         cloudHadData
@@ -535,6 +564,7 @@ export default function App() {
             : "Biblioteca locală a fost salvată în Supabase.",
       );
     } catch {
+      if (!currentLibrary(currentSession.user.id)) return;
       setCloudState(navigator.onLine ? "error" : "offline");
       setNotice(
         navigator.onLine
@@ -603,17 +633,19 @@ export default function App() {
   }
   async function commit(next: Data, explicitRemoval = false) {
     if (busy.current) return false;
+    const userId = sessionRef.current?.user.id;
+    if (supabaseConfigured && (!userId || !currentLibrary(userId))) return false;
     busy.current = true;
     setSaving(true);
     try {
       next = explicitRemoval
         ? trackDeletions(data, next)
         : { ...next, deleted: mergeDeleted(dataRef.current.deleted, next.deleted) };
-      await writeData(next);
+      await writeData(next, userId);
+      if (userId) setLocalFlag(dirtyKey(userId), "true");
+      if (userId && !currentLibrary(userId)) return false;
       dataRef.current = next;
       setData(next);
-      if (supabaseConfigured && localFlag(CLOUD_USER_KEY))
-        setLocalFlag(CLOUD_DIRTY_KEY, "true");
       enqueueCloudSave(next);
       return true;
     } catch {
@@ -814,8 +846,8 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     const stamp = new Date().toISOString();
     try {
-      localStorage.setItem("bonjour-backup-clock", stamp);
-      localStorage.removeItem("bonjour-backup-dismissed");
+      localStorage.setItem(accountKey("bonjour-backup-clock",session?.user.id), stamp);
+      localStorage.removeItem(accountKey("bonjour-backup-dismissed",session?.user.id));
     } catch {
       // Backupul rămâne disponibil chiar dacă stocarea reminderului nu este permisă.
     }
@@ -826,7 +858,7 @@ export default function App() {
   function dismissBackupReminder() {
     if (!backupClock) return;
     try {
-      localStorage.setItem("bonjour-backup-dismissed", backupClock);
+      localStorage.setItem(accountKey("bonjour-backup-dismissed",session?.user.id), backupClock);
     } catch {
       // Reminderul poate fi închis pentru sesiunea curentă.
     }
@@ -978,7 +1010,7 @@ export default function App() {
       setNotice(modal.target === "reset" ? "Progres resetat." : "Șters.");
     }
   }
-  if (fatal && authReady && (!supabaseConfigured || session))
+  if (fatal && authReady && (!supabaseConfigured || (session && libraryUser.current === session.user.id)))
     return (
       <main className="loading">
         <BookOpen size={40} />
@@ -1000,7 +1032,7 @@ export default function App() {
         {recoveryError && <p role="alert">{recoveryError}</p>}
       </main>
     );
-  if (!ready || !authReady)
+  if (!ready || !authReady || (session && libraryUser.current !== session.user.id))
     return (
       <main className="loading">
         <BookOpen size={40} />
